@@ -1,0 +1,30 @@
+[project]
+name = "db-delay-mlops"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "MertAkguel", email = "mert_akguel@web.de" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "huggingface-hub>=2.3.0",
+    "polars>=2.1.0",
+    "pydantic-settings>=2.16.2",
+]
+
+[project.scripts]
+db-delay-mlops = "db_delay_mlops:main"
+
+[build-system]
+requires = ["uv_build>=0.12.21,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipywidgets>=8.1.9",
+    "jupyterlab>=4.6.4",
+    "numpy>=2.5.4",
+    "plotly>=7.1.0",
+]
