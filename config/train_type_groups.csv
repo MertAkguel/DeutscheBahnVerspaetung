@@ -1,0 +1,73 @@
+train_type,group,note
+ICE,long_distance,
+IC,long_distance,
+EC,long_distance,
+ECE,long_distance,
+NJ,long_distance,ÖBB Nightjet
+EN,long_distance,EuroNight
+FLX,long_distance,Flixtrain
+RJ,long_distance,ÖBB Railjet
+RJX,long_distance,ÖBB Railjet Express
+TGV,long_distance,
+EST,long_distance,Eurostar
+EUR,long_distance,"Eurostar, to Paris Nord"
+WB,long_distance,"Westbahn (Austria), to Wien"
+ES,long_distance,"European Sleeper, to Bruxelles"
+D,long_distance,international D train
+UEX,long_distance,Urlaubs-Express
+LE,long_distance,"Leo Express, to Frankfurt(Main)Süd"
+DPF,long_distance,"special long-distance train, only 1 month"
+RE,regional,
+RB,regional,
+IRE,regional,
+MEX,regional,Metropolexpress (Baden-Württemberg)
+NX,regional,"National Express, runs RE lines (e.g. RE6)"
+VIA,regional,
+HLB,regional,Hessische Landesbahn
+BRB,regional,Bayerische Regiobahn
+NWB,regional,NordWestBahn
+ME,regional,metronom
+ERB,regional,eurobahn
+OE,regional,ODEG
+ARV,regional,Arverio
+erx,regional,erixx
+WFB,regional,WestfalenBahn
+ag,regional,agilis
+NBE,regional,nordbahn
+ENO,regional,enno
+FEX,regional,Flughafen-Express Berlin
+CB,regional,City-Bahn Chemnitz
+ABR,regional,Abellio
+vlx,regional,vlexx
+NEB,regional,Niederbarnimer Eisenbahn
+TL,regional,trilex
+TLX,regional,trilex express
+N,regional,Nahverkehrszug
+MRB,regional,Mitteldeutsche Regiobahn
+TR,regional,TRI Train Rental
+CAN,regional,cantus
+RT,regional,RegioTram Kassel
+SMD,regional,
+RSM,regional,
+ALX,regional,alex
+EB,regional,Erfurter Bahn
+TRI,regional,
+STN,regional,
+TCS,regional,
+OPB,regional,oberpfalzbahn
+STB,regional,"Süd-Thüringen-Bahn (RB46), not a city tram"
+RSU,regional,
+DZ,regional,"most common line RE13"
+HBX,regional,Harz-Berlin-Express
+SAB,regional,Schwäbische Alb-Bahn
+S,s_bahn,
+SBH,s_bahn,S-Bahn Hannover
+SWE,s_bahn,"SWEG, most common line S2"
+RRB,s_bahn,"most common line S7"
+AVG,s_bahn,"Albtal-Verkehrs-Gesellschaft, Karlsruhe S-Bahn"
+R,s_bahn,"most common line S28 (Regiobahn)"
+SBB,s_bahn,"SBB Deutschland, Seehas S6"
+AKN,s_bahn,"AKN, Hamburg A lines"
+MDS,s_bahn,"most common line S5 (Halle)"
+Bus,exclude,no real-time data (86 % exactly 0 min)
+CBG,exclude,"unclear, only 1 month"

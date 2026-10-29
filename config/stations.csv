@@ -1,0 +1,147 @@
+eva,xml_station_name,n_stops,n_months,stada_name,category,federal_state,lat,lon,is_main_eva,collect
+08089066,Berlin Friedrichstraße (S),668216,16,Berlin Friedrichstraße,2,Berlin,52.5201772,13.3869052,false,true
+08000085,Düsseldorf Hbf,652811,16,Düsseldorf Hbf,1,Nordrhein-Westfalen,51.219962,6.794319,true,true
+08000207,Köln Hbf,583068,16,Köln Hbf,1,Nordrhein-Westfalen,50.94303,6.958729,true,true
+08098549,Hamburg Hbf (S-Bahn),578334,16,Hamburg Hbf,1,Hamburg,53.552809,10.007921,false,true
+08089028,Berlin Ostkreuz (S),570506,12,Berlin Ostkreuz,2,Berlin,52.503003,13.469309,false,true
+08000284,Nürnberg Hbf,566901,16,Nürnberg Hbf,1,Bayern,49.445616,11.082989,true,true
+08000262,München Ost,555913,16,München Ost,1,Bayern,48.12744,11.604971,true,true
+08000105,Frankfurt(Main)Hbf,555174,16,Frankfurt (Main) Hbf,1,Hessen,50.1066819,8.66282825,true,true
+08089073,Berlin Südkreuz (S),532797,16,Berlin Südkreuz,1,Berlin,52.476134,13.365144,false,true
+08089015,Berlin Gesundbrunnen(S),508979,16,Berlin Gesundbrunnen,1,Berlin,52.548963,13.388513,false,true
+08000080,Dortmund Hbf,498937,16,Dortmund Hbf,1,Nordrhein-Westfalen,51.517896,7.45929,true,true
+08004158,München-Pasing,489112,16,München-Pasing,2,Bayern,48.149852,11.461872,true,true
+08003368,Köln Messe/Deutz,479452,16,Köln Messe/Deutz,1,Nordrhein-Westfalen,50.940874,6.975001,true,true
+08098553,Hamburg-Altona(S),476973,16,Hamburg-Altona,1,Hamburg,53.551855,9.934554,false,true
+08000152,Hannover Hbf,468578,16,Hannover Hbf,1,Niedersachsen,52.376761,9.741021,true,true
+08098263,München Hbf (tief),455772,16,München Hbf,1,Bayern,48.141172,11.560493,false,true
+08000098,Essen Hbf,453267,16,Essen Hbf,1,Nordrhein-Westfalen,51.451355,7.014793,true,true
+08089185,Berlin Ostbahnhof (S),427298,16,Berlin Ostbahnhof,1,Berlin,52.5107167,13.4351206,false,true
+08000096,Stuttgart Hbf,409250,16,Stuttgart Hbf,1,Baden-Württemberg,48.78478,9.182757,true,true
+08098105,Frankfurt Hbf (tief),395114,16,Frankfurt (Main) Hbf,1,Hessen,50.1071101,8.6625612,false,true
+08000086,Duisburg Hbf,381204,16,Duisburg Hbf,1,Nordrhein-Westfalen,51.429785,6.775903,true,true
+08002041,Frankfurt(Main)Süd,370264,16,Frankfurt (Main) Süd,2,Hessen,50.099365,8.686457,true,true
+08000191,Karlsruhe Hbf,364370,16,Karlsruhe Hbf,1,Baden-Württemberg,48.993515,8.402181,true,true
+08089032,Berlin Potsdamer Platz (S),362419,16,Berlin Potsdamer Platz,2,Berlin,52.509508,13.376649,false,true
+08089182,Berlin-Lichtenberg (S),357201,16,Berlin-Lichtenberg,2,Berlin,52.50992,13.4972513,false,true
+08089046,Berlin Zoologischer Garten (S),349660,16,Berlin Zoologischer Garten,2,Berlin,52.50706,13.331786,false,true
+08002549,Hamburg Hbf,344920,16,Hamburg Hbf,1,Hamburg,53.552736,10.006909,true,true
+08002548,Hamburg Dammtor,342479,16,Hamburg Dammtor,2,Hamburg,53.560751,9.989566,true,true
+08000170,Ulm Hbf,326846,16,Ulm Hbf,2,Baden-Württemberg,48.3993985,9.98260796,true,true
+08089021,Berlin Hbf (S-Bahn),326477,16,Berlin Hauptbahnhof,1,Berlin,52.525592,13.369545,false,true
+08000244,Mannheim Hbf,322278,16,Mannheim Hbf,1,Baden-Württemberg,49.479354,8.468921,true,true
+08000013,Augsburg Hbf,305484,16,Augsburg Hbf,1,Bayern,48.365441,10.88557,true,true
+08000261,München Hbf,303554,16,München Hbf,1,Bayern,48.140232,11.558335,true,true
+08010159,Halle(Saale)Hbf,302381,16,Halle (Saale) Hbf,2,Sachsen-Anhalt,51.477509,11.987085,true,true
+08098096,Stuttgart Hbf (tief),296032,14,Stuttgart Hbf,1,Baden-Württemberg,48.782999,9.179808,false,true
+08000274,Neuss Hbf,292997,16,Neuss Hbf,2,Nordrhein-Westfalen,51.204351,6.684527,true,true
+08000263,Münster(Westf)Hbf,287722,16,Münster (Westf) Hbf,2,Nordrhein-Westfalen,51.956566,7.635715,true,true
+08000266,Wuppertal Hbf,283722,16,Wuppertal Hbf,2,Nordrhein-Westfalen,51.254363,7.149543,true,true
+08000050,Bremen Hbf,281502,16,Bremen Hbf,2,Bremen,53.083481,8.813834,true,true
+08010101,Erfurt Hbf,261137,16,Erfurt Hbf,2,Thüringen,50.9723561,11.0379928,true,true
+08000240,Mainz Hbf,257864,16,Mainz Hbf,2,Rheinland-Pfalz,50.001117,8.25872,true,true
+08000150,Hanau Hbf,255640,16,Hanau Hbf,2,Hessen,50.120953,8.929,true,true
+08000142,Hagen Hbf,251483,16,Hagen Hbf,2,Nordrhein-Westfalen,51.362747,7.460249,true,true
+08010089,Dresden-Neustadt,250787,16,Dresden-Neustadt,2,Sachsen,51.065899,13.740701,true,true
+08010085,Dresden Hbf,244558,16,Dresden Hbf,1,Sachsen,51.040563,13.732035,true,true
+08000286,Oberhausen Hbf,240556,16,Oberhausen Hbf,2,Nordrhein-Westfalen,51.474878,6.851588,true,true
+08010205,Leipzig Hbf,238493,16,Leipzig Hbf,1,Sachsen,51.3454712,12.3820639,true,true
+08000250,Wiesbaden Hbf,234082,16,Wiesbaden Hbf,2,Hessen,50.070791,8.243731,true,true
+08000049,Braunschweig Hbf,231579,16,Braunschweig Hbf,2,Niedersachsen,52.252218,10.540295,true,true
+08098205,Leipzig Hbf (tief),229601,16,Leipzig Hbf,1,Sachsen,51.345696,12.380428,false,true
+08089190,Berlin-Wannsee (S),227246,16,Berlin-Wannsee,2,Berlin,52.42118,13.1794176,false,true
+08000206,Koblenz Hbf,225371,16,Koblenz Hbf,2,Rheinland-Pfalz,50.350929,7.588345,true,true
+08010224,Magdeburg Hbf,223303,16,Magdeburg Hbf,2,Sachsen-Anhalt,52.1305112,11.626963,true,true
+08003200,Kassel-Wilhelmshöhe,221903,16,Kassel-Wilhelmshöhe,2,Hessen,51.3125585,9.44711566,true,true
+08000156,Heidelberg Hbf,221442,16,Heidelberg Hbf,2,Baden-Württemberg,49.403567,8.675442,true,true
+08000055,Bruchsal,221350,16,Bruchsal,2,Baden-Württemberg,49.124622,8.589649,true,true
+08098147,Hamburg-Harburg(S),216895,16,Hamburg-Harburg,2,Hamburg,53.45696,9.991454,false,true
+08000260,Würzburg Hbf,214417,16,Würzburg Hbf,2,Bayern,49.801796,9.93578,true,true
+08098261,München Hbf Gl.27-36,213235,16,München Hbf,1,Bayern,48.141529,11.556708,false,true
+08098160,Berlin Hbf,212620,16,Berlin Hauptbahnhof,1,Berlin,52.525592,13.369545,false,true
+08000036,Bielefeld Hbf,208057,16,Bielefeld Hbf,2,Nordrhein-Westfalen,52.029261,8.532722,true,true
+08000107,Freiburg(Breisgau) Hbf,204642,16,Freiburg (Breisgau) Hbf,2,Baden-Württemberg,47.997697,7.84117,true,true
+08000253,Mönchengladbach Hbf,200793,16,Mönchengladbach Hbf,2,Nordrhein-Westfalen,51.196583,6.446111,true,true
+08000001,Aachen Hbf,199432,16,Aachen Hbf,2,Nordrhein-Westfalen,50.7678,6.091499,true,true
+08010404,Berlin-Spandau,199174,16,Berlin-Spandau,2,Berlin,52.5346481,13.1968975,true,true
+08000149,Hamm(Westf)Hbf,198723,16,Hamm (Westf) Hbf,2,Nordrhein-Westfalen,51.678078,7.807821,true,true
+08010184,Chemnitz Hbf,193114,16,Chemnitz Hbf,2,Sachsen,50.839696,12.930877,true,true
+08010304,Rostock Hbf,186001,16,Rostock Hbf,2,Mecklenburg-Vorpommern,54.078246,12.131079,true,true
+08000041,Bochum Hbf,183987,16,Bochum Hbf,2,Nordrhein-Westfalen,51.478609,7.223275,true,true
+08000124,Gießen,183391,16,Gießen,2,Hessen,50.579059,8.661462,true,true
+08000087,Solingen Hbf,182676,16,Solingen Hbf,2,Nordrhein-Westfalen,51.160766,7.004187,true,true
+08010255,Berlin Ostbahnhof,182146,16,Berlin Ostbahnhof,1,Berlin,52.5104881,13.4346807,true,true
+08011160,Berlin Hbf,179320,16,Berlin Hauptbahnhof,1,Berlin,52.525592,13.369545,true,true
+08000118,Gelsenkirchen Hbf,178359,16,Gelsenkirchen Hbf,2,Nordrhein-Westfalen,51.504903,7.102455,true,true
+08000068,Darmstadt Hbf,177789,16,Darmstadt Hbf,2,Hessen,49.872503,8.629636,true,true
+08000128,Göttingen,177255,16,Göttingen,2,Niedersachsen,51.536815,9.926072,true,true
+08000323,Saarbrücken Hbf,176080,16,Saarbrücken Hbf,2,Saarland,49.241065,6.991021,true,true
+08000114,Fürth(Bay)Hbf,175049,16,Fürth (Bay) Hbf,2,Bayern,49.469707,10.989988,true,true
+08011162,Berlin Ostkreuz,173547,12,Berlin Ostkreuz,2,Berlin,52.503037,13.469105,true,true
+08000294,Osnabrück Hbf,173046,16,Osnabrück Hbf,2,Niedersachsen,52.272851,8.061781,true,true
+08000025,Bamberg,172802,16,Bamberg,2,Bayern,49.900759,10.899489,true,true
+08000141,Tübingen Hbf,168872,16,Tübingen Hbf,2,Baden-Württemberg,48.5156414,9.05539513,true,true
+08000199,Kiel Hbf,167648,16,Kiel Hbf,2,Schleswig-Holstein,54.314985,10.131976,true,true
+08000038,Bietigheim-Bissingen,166454,16,Bietigheim-Bissingen,2,Baden-Württemberg,48.947933,9.137557,true,true
+08000147,Hamburg-Harburg,162302,16,Hamburg-Harburg,2,Hamburg,53.455908,9.991701,true,true
+08011113,Berlin Südkreuz,161771,16,Berlin Südkreuz,1,Berlin,52.475047,13.365319,true,true
+08000237,Lübeck Hbf,160387,16,Lübeck Hbf,2,Schleswig-Holstein,53.867547,10.669821,true,true
+08000299,Pforzheim Hbf,156737,16,Pforzheim Hbf,2,Baden-Württemberg,48.8941126,8.70300651,true,true
+08000309,Regensburg Hbf,153572,16,Regensburg Hbf,2,Bayern,49.011672,12.099617,true,true
+08000302,Plochingen,151603,16,Plochingen,2,Baden-Württemberg,48.71308,9.41081,true,true
+08000290,Offenburg,148221,16,Offenburg,2,Baden-Württemberg,48.476475,7.946723,true,true
+08000189,Kaiserslautern Hbf,147238,16,Kaiserslautern Hbf,2,Rheinland-Pfalz,49.4358593,7.76862681,true,true
+08000115,Fulda,145895,16,Fulda,2,Hessen,50.5549058,9.68416929,true,true
+08000073,Singen(Hohentwiel),145883,16,Singen (Hohentwiel),2,Baden-Württemberg,47.7588801,8.84126902,true,true
+08011201,Flughafen BER,144054,16,Flughafen BER,2,Brandenburg,52.3648038,13.5119498,true,true
+08000236,Ludwigshafen(Rh)Hbf,140979,16,Ludwigshafen (Rhein) Hbf,2,Rheinland-Pfalz,49.476529,8.433042,true,true
+08000275,Neustadt(Weinstr)Hbf,140854,16,Neustadt (Weinstr) Hbf,2,Rheinland-Pfalz,49.349553,8.140757,true,true
+08000183,Ingolstadt Hbf,136915,16,Ingolstadt Hbf,2,Bayern,48.744541,11.437337,true,true
+08000169,Hildesheim Hbf,136537,16,Hildesheim Hbf,2,Niedersachsen,52.160626,9.953497,true,true
+08011306,Berlin Friedrichstraße,135578,16,Berlin Friedrichstraße,2,Berlin,52.520373,13.3872056,true,true
+08000297,Paderborn Hbf,134579,16,Paderborn Hbf,2,Nordrhein-Westfalen,51.712979,8.740505,true,true
+08011102,Berlin Gesundbrunnen,133904,16,Berlin Gesundbrunnen,1,Berlin,52.548963,13.388513,true,true
+08000044,Bonn Hbf,128631,16,Bonn Hbf,2,Nordrhein-Westfalen,50.732008,7.097136,true,true
+08000271,Neumünster,126233,16,Neumünster,2,Schleswig-Holstein,54.075752,9.979816,true,true
+08010406,Berlin Zoologischer Garten,125855,16,Berlin Zoologischer Garten,2,Berlin,52.5073407,13.3324447,true,true
+08000320,Rosenheim,121842,16,Rosenheim,2,Bayern,47.850018,12.119202,true,true
+08010036,Berlin-Lichtenberg,118516,16,Berlin-Lichtenberg,2,Berlin,52.5101355,13.4966934,true,true
+08006552,Wolfsburg Hbf,118442,16,Wolfsburg Hbf,2,Niedersachsen,52.429498,10.787784,true,true
+08089083,Berlin-Spandau (S),116334,16,Berlin-Spandau,2,Berlin,52.5347721,13.1974528,false,true
+08000010,Aschaffenburg Hbf,114653,16,Aschaffenburg Hbf,2,Bayern,49.980557,9.143697,true,true
+08012666,Potsdam Hbf,114518,16,Potsdam Hbf,2,Brandenburg,52.391509,13.0667031,true,true
+08000257,Worms Hbf,114009,16,Worms Hbf,2,Rheinland-Pfalz,49.63494,8.356448,true,true
+08010113,Frankfurt(Oder),113017,16,Frankfurt (Oder),2,Brandenburg,52.336416,14.546496,true,true
+08000134,Trier Hbf,111281,16,Trier Hbf,2,Rheinland-Pfalz,49.756846,6.652453,true,true
+08089201,Flughafen BER (S-Bahn),109598,16,Flughafen BER,2,Brandenburg,52.3648431,13.5119176,false,true
+08089184,Potsdam Hbf (S),109466,16,Potsdam Hbf,2,Brandenburg,52.3918593,13.0667138,false,true
+08010073,Cottbus Hbf,108857,16,Cottbus Hbf,2,Brandenburg,51.750957,14.324162,true,true
+08000217,Landshut(Bay)Hbf,106879,16,Landshut (Bay) Hbf,2,Bayern,48.547492,12.13593,true,true
+08000162,Herford,103484,16,Herford,2,Nordrhein-Westfalen,52.119609,8.663643,true,true
+08000316,Rheine,102670,16,Rheine,2,Nordrhein-Westfalen,52.276299,7.434255,true,true
+08000168,Uelzen,100015,16,Uelzen,2,Niedersachsen,52.969781,10.553053,true,true
+08002553,Hamburg-Altona,99187,16,Hamburg-Altona,1,Hamburg,53.552695,9.935175,true,true
+08010405,Berlin-Wannsee,95261,16,Berlin-Wannsee,2,Berlin,52.4209723,13.1795275,true,true
+08000291,Oldenburg(Oldb)Hbf,90806,16,Oldenburg (Oldb) Hbf,2,Niedersachsen,53.144323,8.222713,true,true
+08000238,Lüneburg,90583,16,Lüneburg,2,Niedersachsen,53.249656,10.41989,true,true
+08000193,Kassel Hbf,83335,16,Kassel Hbf,2,Hessen,51.31826,9.489501,true,true
+08011118,Berlin Potsdamer Platz,81292,16,Berlin Potsdamer Platz,2,Berlin,52.509379,13.375988,true,true
+08010366,Weimar,75381,12,Weimar,2,Thüringen,50.991487,11.326458,true,true
+08000023,Bad Oldesloe,71381,16,Bad Oldesloe,2,Schleswig-Holstein,53.8053902,10.3825414,true,true
+08098262,München Hbf Gl.5-10,58586,16,München Hbf,1,Bayern,48.13993,11.554814,false,true
+08000082,Düsseldorf Flughafen,50764,5,Düsseldorf Flughafen,3,Nordrhein-Westfalen,51.292009,6.786836,true,true
+08079041,Karlsruhe Bahnhofsvorplatz,40308,5,,,,,,,false
+08073368,Köln Messe/Deutz Gl.11-12,35045,16,Köln Messe/Deutz,1,Nordrhein-Westfalen,50.941721,6.974067,false,true
+0836075,"Hauptbahnhof, Saarbrücken",33427,5,,,,,,,false
+08000157,Heilbronn Hbf,32208,5,Heilbronn Hbf,3,Baden-Württemberg,49.143306,9.207715,true,true
+08098193,Kassel Hbf (tief),26085,5,,,,,,,false
+08001580,Düsseldorf Flughafen Terminal,15973,5,Düsseldorf Flughafen Terminal,4,Nordrhein-Westfalen,51.278517,6.766979,true,true
+08071738,Chemnitz Hbf (Bahnhofstraße),15957,5,,,,,,,false
+0423638,"Hauptbahnhof/Busbahnhof, Heilbronn",13619,5,,,,,,,false
+08070814,Halle(Saale)Hbf Busbahnhof Bussteig 9,10085,5,,,,,,,false
+0370014,"Bremen Hbf/Hugo-Schauinsland-Platz, Bremen",6204,5,,,,,,,false
+0378258,"ZOB/Hauptbahnhof, Lübeck",4973,5,,,,,,,false
+08089295,Chemnitz Omnibusbahnhof,3657,5,,,,,,,false
+0540001,"Hauptbahnhof, Regensburg",3032,3,,,,,,,false
+0940370,"ZOB/Hauptbahnhof, Pforzheim",2487,4,,,,,,,false
+08082019,Braunschweig Hbf ZOB,2307,5,,,,,,,false
