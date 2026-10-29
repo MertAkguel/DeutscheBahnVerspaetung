@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "holidays>=0.107",
     "httpx>=0.28.1",
     "huggingface-hub>=2.3.0",
     "polars>=2.1.0",
