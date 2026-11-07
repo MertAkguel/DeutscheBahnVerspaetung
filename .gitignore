@@ -225,3 +225,8 @@ data/raw/
 
 # my docs
 docs/
+
+# MLflow (tracking database and model artifacts)
+mlflow.db
+mlartifacts/
+mlruns/
