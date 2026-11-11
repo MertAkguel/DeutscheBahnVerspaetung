@@ -12,15 +12,15 @@ An end-to-end MLOps project that predicts whether a Deutsche Bahn train will arr
 
 ## Current status
 
-As of 2026-10-29: data download, station list, own raw data collector, target definition and the first features (time, public holidays, weather forecast) are in place; data analysis is in progress.
+As of 2026-11-08: data, target and features are defined; a first experiment (July 2024 for training, July 2026 for testing) compared three baselines and three gradient boosting libraries in MLflow, and LightGBM was chosen. Tuning and the model registry are in progress.
 
 | Component | Tool (planned) | Status |
 | --- | --- | --- |
 | Problem description | this README | 🔄 in progress |
 | Data download and own collector | huggingface_hub, httpx, Polars | ✅ first version |
-| Data analysis and baseline | Jupyter, Polars, Plotly | 🔄 in progress |
+| Data analysis and baselines | Jupyter, Polars, Plotly, scikit-learn | ✅ first version |
 | Target and feature definition | this README, `src/db_delay_mlops/features/` | ✅ first version |
-| Experiment tracking and model registry | MLflow | ⬜ open |
+| Experiment tracking and model registry | MLflow 3, LightGBM | 🔄 in progress |
 | Workflow orchestration | Apache Airflow 3 | ⬜ open |
 | Model deployment | FastAPI, Docker | ⬜ open |
 | Monitoring with retraining on drift | Evidently, Grafana | ⬜ open |
@@ -252,6 +252,52 @@ So the "fog makes trains punctual" effect disappears completely, and about half 
 - **Local hot spots:** in September 2026, 76 % of ICE arrivals in Hamm and 83 % in Bielefeld were late, compared with 36 % in Hamm across all trains in July 2024. This is the kind of real drift the monitoring has to detect.
 - **Small samples mislead:** a station with a single diverted ICE that was late shows "100 % late". The station map therefore hides stations with fewer than 30 arrivals of the selected train types.
 - **Buses have no real-time data:** 86 % of bus arrivals are exactly on time, so buses are excluded.
+- **The format of `line_number` changed:** in July 2024 DB trains only had digits (S-Bahn `"1"`), in July 2026 always a prefix (`"S1"`). Without cleaning, the same line would get two different values and the model would see unknown lines in the test data. The feature `line` therefore puts the train type in front of digit-only values.
+
+## Model selection
+
+### First experiment
+
+A small, fast setup to choose the model type (`notebooks/04_build_dataset.ipynb`, `notebooks/05_mlflow_first_run.ipynb`):
+
+| Split | Data | Rows | Late |
+| --- | --- | --- | --- |
+| `train` | rides starting 2024-07-01 to 2024-07-24 | 1,120,128 | 20.9 % |
+| `valid` | rides starting 2024-07-25 to 2024-07-31 | 285,416 | 19.7 % |
+| `test` | July 2026, used once at the very end | 1,326,948 | 23.4 % |
+
+- The split is made **first**, by **ride start**: all stops of a ride stay in the same split, and everything learned from data (e.g. categories, lookup tables) only sees `train`.
+- `valid` is used to compare models and for early stopping, `test` only for the final model.
+- Metrics: **PR-AUC** (main metric, because only about 20 % of arrivals are late), ROC-AUC, **Brier score** and log loss (both check whether the probabilities are right).
+- Every run is logged in MLflow with the tag `stage` (`baseline`, `candidate`, `tuning`).
+
+### Results on `valid`
+
+| Model | Stage | PR-AUC ↑ | ROC-AUC ↑ | Brier ↓ | Log loss ↓ | Training time |
+| --- | --- | --- | --- | --- | --- | --- |
+| Constant: training late share for every stop | baseline | 0.197 | 0.500 | 0.159 | 0.497 | – |
+| Late share per train group × hour (72-row table) | baseline | 0.356 | 0.693 | 0.145 | 0.458 | – |
+| Logistic regression, all 13 features (one-hot, scaled) | baseline | 0.452 | 0.773 | 0.133 | 0.418 | ~30 s |
+| **LightGBM**, 100 trees | candidate | **0.494** | **0.792** | **0.128** | **0.404** | **~7 s** |
+| XGBoost, 100 trees | candidate | 0.492 | 0.790 | 0.129 | 0.408 | ~13 s |
+| CatBoost, 100 trees | candidate | 0.470 | 0.777 | 0.132 | 0.414 | ~22 s |
+
+↑ higher is better, ↓ lower is better. All tree models use their default settings except the number of trees.
+
+What the steps show:
+
+- **Constant → train group × hour (+0.16 PR-AUC):** the two most obvious effects, train group and time of day, already explain a lot.
+- **→ logistic regression (+0.10):** the other features (station, line, destination, position on the ride, weather, holidays) add real information.
+- **→ gradient boosting (+0.04):** trees learn **interactions** that a linear model cannot, e.g. the S1 *in Munich* versus the S1 *in Berlin*, or heat *in the afternoon* versus heat in the morning.
+
+### Why LightGBM
+
+- **Best quality at equal effort:** with 100 trees each, LightGBM has the best PR-AUC, Brier score and log loss. CatBoost reached a slightly higher PR-AUC (0.497) only with its default of 1,000 trees, which took about 10 minutes instead of 7 seconds.
+- **Fastest:** about 2× faster than XGBoost and 3× faster than CatBoost at 100 trees. This matters for hyperparameter tuning (dozens of training runs) and for the monthly retraining on all months, which is 10–20× more data than this experiment.
+- **Handles our data as it is:** categories such as station and line directly, and missing values (no line for most long-distance trains) without extra steps. The only preparation is `CategoryCaster`, which gives every table the categories of `train`.
+- **Explainable:** feature importances and SHAP values work well with tree models.
+
+The differences between the three libraries are small (0.024 PR-AUC). More training months and better features are expected to matter more than the choice of library.
 
 ## Project structure
 
@@ -263,6 +309,9 @@ notebooks/
   01_explore_hf_data.ipynb  # first look at the data
   02_station_map.ipynb      # interactive map, filter by train group and train type
   03_column_selection.ipynb # row rules, target, time, holiday and weather features
+  04_build_dataset.ipynb    # train / valid / test files for the first experiment
+  05_mlflow_first_run.ipynb # baselines and model comparison in MLflow
+  06_tuning_and_champion.ipynb # early stopping, tuning, model registry, test
 src/db_delay_mlops/
   paths.py                  # absolute project paths
   data/
@@ -274,6 +323,10 @@ src/db_delay_mlops/
     station_info.py         # station -> federal state, coordinates
     holidays.py             # is_holiday
     weather.py              # day-ahead weather forecast, weather categories
+    columns.py              # feature lists and target, shared by all notebooks and scripts
+  models/
+    preprocessing.py        # CategoryCaster, FillMissingText: saved together with the model
+    evaluate.py             # metrics used to compare all models
 data/                       # not in git: downloaded and collected data
 ```
 
