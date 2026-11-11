@@ -221,6 +221,7 @@ __marimo__/
 
 # Project data (downloaded, never committed)
 data/raw/
+data/processed/
 
 
 # my docs
@@ -230,3 +231,7 @@ docs/
 mlflow.db
 mlartifacts/
 mlruns/
+
+
+
+catboost_info/
