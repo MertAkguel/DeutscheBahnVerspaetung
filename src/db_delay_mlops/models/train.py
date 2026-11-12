@@ -188,7 +188,9 @@ def main() -> None:
     parser.add_argument("--data-dir", type=Path, default=OUT_DIR)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    train(args.valid_month, args.n_train_months, args.data_dir)
+    result = train(args.valid_month, args.n_train_months, args.data_dir)
+    # Last line on stdout = run id. Airflow's bash task passes the last output line to the next task.
+    print(result["run_id"])
 
 
 if __name__ == "__main__":
