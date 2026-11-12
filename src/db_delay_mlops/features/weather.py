@@ -84,7 +84,9 @@ def fetch_month(month: date, batch_size: int = 25) -> pl.DataFrame:
                     }
                 )
             )
-        logger.info("Weather %s: %d/%d stations", f"{month:%Y-%m}", min(start + batch_size, coords.height), coords.height)
+        logger.info(
+            "Weather %s: %d/%d stations", f"{month:%Y-%m}", min(start + batch_size, coords.height), coords.height
+        )
         time.sleep(1)  # stay far below 600 calls per minute
 
     return (

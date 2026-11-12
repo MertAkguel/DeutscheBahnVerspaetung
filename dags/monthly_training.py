@@ -16,7 +16,8 @@ PY = "$PIPELINE_PYTHON -m db_delay_mlops"
 
 @dag(
     schedule="0 6 3 * *",  # cron: minute 0, hour 6 (UTC), day 3, every month, every weekday
-    start_date=datetime(2026, 11, 1),
+    # First run date whose 12 months of data exist: the run on 2026-10-03 handles 2026-09
+    start_date=datetime(2026, 10, 1),
     catchup=False,  # do not run all past months automatically when the DAG is switched on
     max_active_runs=1,  # one training at a time: two would not fit into memory
     default_args={"retries": 1, "retry_delay": timedelta(minutes=5)},

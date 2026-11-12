@@ -28,7 +28,10 @@ LATE_SHARE_RANGE = (0.05, 0.60)  # observed 2024-07 to 2026-09: about 0.16 to 0.
 MAX_UNMAPPED_SHARE = 0.005  # train types not in train_type_groups.csv, share of rows at our stations
 
 STATION_NAMES = (
-    pl.read_csv(STATIONS_FILE, schema_overrides={"eva": pl.String}).filter(pl.col("collect"))["stada_name"].unique().to_list()
+    pl.read_csv(STATIONS_FILE, schema_overrides={"eva": pl.String})
+    .filter(pl.col("collect"))["stada_name"]
+    .unique()
+    .to_list()
 )
 
 ARRIVALS_SCHEMA = pa.DataFrameSchema(
@@ -89,7 +92,9 @@ def validate_month(month: str, out_dir: Path = OUT_DIR) -> dict[str, float]:
     if stats["unmapped_share"] > MAX_UNMAPPED_SHARE:
         logger.warning(
             "%s: %.2f %% of rows have a train type missing in train_type_groups.csv, e.g. %s",
-            month, 100 * stats["unmapped_share"], top_unmapped,
+            month,
+            100 * stats["unmapped_share"],
+            top_unmapped,
         )
 
     logger.info("%s valid: %s", month, {k: round(v, 4) for k, v in stats.items()})

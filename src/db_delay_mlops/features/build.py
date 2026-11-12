@@ -25,8 +25,16 @@ OUT_DIR = DATA_DIR / "processed" / "arrivals"
 
 RAIL_GROUPS = ["long_distance", "regional", "s_bahn"]
 RAW_COLUMNS = [
-    "id", "eva", "train_type", "line_number", "final_destination_station", "train_line_station_num",
-    "has_plan_record", "arrival_planned_time", "arrival_change_time", "arrival_is_canceled",
+    "id",
+    "eva",
+    "train_type",
+    "line_number",
+    "final_destination_station",
+    "train_line_station_num",
+    "has_plan_record",
+    "arrival_planned_time",
+    "arrival_change_time",
+    "arrival_is_canceled",
 ]
 METADATA = ["id", "eva", "arrival_planned_time", "ride_start"]  # kept for joins and analysis, not features
 
@@ -62,7 +70,9 @@ def add_timetable_features(lf: pl.LazyFrame) -> pl.LazyFrame:
         hour=pl.col("arrival_planned_time").dt.hour(),
         weekday=pl.col("arrival_planned_time").dt.weekday(),  # 1 = Monday, 7 = Sunday (ISO)
         month=pl.col("arrival_planned_time").dt.month(),
-        minutes_since_departure=(pl.col("arrival_planned_time") - pl.col("ride_start")).dt.total_minutes().clip(lower_bound=0),
+        minutes_since_departure=(pl.col("arrival_planned_time") - pl.col("ride_start"))
+        .dt.total_minutes()
+        .clip(lower_bound=0),
         # "1" (2024) and "S1" (2026) must be the same line: put the train type in front of digit-only values
         line=pl.when(line_clean.str.contains(r"^\d+$")).then(pl.col("train_type") + line_clean).otherwise(line_clean),
     )

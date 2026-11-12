@@ -43,6 +43,29 @@ def champion_pr_auc(client: MlflowClient, valid_month: str) -> tuple[float | Non
     return evaluate(y_valid, p_valid)["pr_auc"], champion.version
 
 
+# The two gate rules as plain functions: no MLflow needed, so they are easy to test.
+def is_older_than_champion(valid_month: str, champion_month: str | None) -> bool:
+    """Backfill guard: a model for an older month must never replace a newer champion.
+
+    "YYYY-MM" strings sort like dates, so < works. Unknown champion month -> no guard.
+    """
+    return champion_month is not None and valid_month < champion_month
+
+
+def beats_champion(new_pr_auc: float, champion_pr_auc: float | None) -> bool:
+    """Promote if there is no champion yet, or if the new model is better (equal is not enough)."""
+    return champion_pr_auc is None or new_pr_auc > champion_pr_auc + MIN_IMPROVEMENT
+
+
+def champion_valid_month(client: MlflowClient) -> str | None:
+    """valid_month of the current champion (version tag set below), or None if unknown."""
+    try:
+        champion = client.get_model_version_by_alias(MODEL_NAME, "champion")
+    except MlflowException:
+        return None
+    return champion.tags.get("valid_month")
+
+
 def model_uri_of(client: MlflowClient, run) -> str:
     """Where the model of this run is stored (models:/m-...).
 
@@ -68,8 +91,25 @@ def register_if_better(run_id: str, valid_month: str) -> dict:
     run = client.get_run(run_id)
     new_pr_auc = run.data.metrics["pr_auc"]
     model_uri = model_uri_of(client, run)
+
+    champion_month = champion_valid_month(client)
+    if is_older_than_champion(valid_month, champion_month):
+        with mlflow.start_run(run_id=run_id):
+            mlflow.set_tag("gate_decision", "skipped_older_month")
+        logger.info(
+            "skipped: %s is older than the champion's month %s, champion stays",
+            valid_month,
+            champion_month,
+        )
+        return {
+            "valid_month": valid_month,
+            "new_pr_auc": new_pr_auc,
+            "champion_month": champion_month,
+            "promoted": False,
+        }
+
     old_pr_auc, old_version = champion_pr_auc(client, valid_month)
-    promoted = old_pr_auc is None or new_pr_auc > old_pr_auc + MIN_IMPROVEMENT
+    promoted = beats_champion(new_pr_auc, old_pr_auc)
 
     result = {
         "valid_month": valid_month,
@@ -93,17 +133,34 @@ def register_if_better(run_id: str, valid_month: str) -> dict:
         client.set_model_version_tag(MODEL_NAME, version, "valid_month", valid_month)
         client.set_model_version_tag(MODEL_NAME, version, "valid_pr_auc", f"{new_pr_auc:.4f}")
         result["new_version"] = version
-        logger.info("promoted: version %s is @champion (pr_auc %.4f vs. %s)", version, new_pr_auc, old_pr_auc)
+        logger.info(
+            "promoted: version %s is @champion (pr_auc %.4f vs. %s)",
+            version,
+            new_pr_auc,
+            old_pr_auc,
+        )
     else:
-        logger.info("rejected: new pr_auc %.4f is not better than champion %.4f, champion stays", new_pr_auc, old_pr_auc)
+        logger.info(
+            "rejected: new pr_auc %.4f is not better than champion %.4f, champion stays",
+            new_pr_auc,
+            old_pr_auc,
+        )
 
     return result
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--run-id", required=True, help="MLflow run of the new model (printed by models/train.py)")
-    parser.add_argument("--valid-month", required=True, help="YYYY-MM, the same month the new model was validated on")
+    parser.add_argument(
+        "--run-id",
+        required=True,
+        help="MLflow run of the new model (printed by models/train.py)",
+    )
+    parser.add_argument(
+        "--valid-month",
+        required=True,
+        help="YYYY-MM, the same month the new model was validated on",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     register_if_better(args.run_id, args.valid_month)

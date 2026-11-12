@@ -102,10 +102,12 @@ def load_months(months: list[str], data_dir: Path = OUT_DIR):
 
 
 def make_pipeline() -> Pipeline:
-    return Pipeline([
-        ("categories", CategoryCaster(columns=TEXT_FEATURES)),  # text -> category (learned on train)
-        ("model", LGBMClassifier(random_state=SEED, verbose=-1, **LGBM_PARAMS)),
-    ])
+    return Pipeline(
+        [
+            ("categories", CategoryCaster(columns=TEXT_FEATURES)),  # text -> category (learned on train)
+            ("model", LGBMClassifier(random_state=SEED, verbose=-1, **LGBM_PARAMS)),
+        ]
+    )
 
 
 def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path = OUT_DIR) -> dict:
@@ -120,7 +122,13 @@ def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path
     X_valid, y_valid = load_months([valid_month], data_dir)
     logger.info(
         "train %s .. %s: %d rows | stop %s: %d rows | valid %s: %d rows",
-        train_months[0], train_months[-1], len(X_train), stop_month, len(X_stop), valid_month, len(X_valid),
+        train_months[0],
+        train_months[-1],
+        len(X_train),
+        stop_month,
+        len(X_stop),
+        valid_month,
+        len(X_valid),
     )
 
     pipeline = make_pipeline()
@@ -151,18 +159,20 @@ def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path
         }
 
         mlflow.set_tags({"stage": "monthly", "valid_month": valid_month})
-        mlflow.log_params({
-            "model": "LGBMClassifier",
-            "train_months": f"{train_months[0]}..{train_months[-1]}",
-            "n_train_months": n_train_months,
-            "stop_month": stop_month,
-            "valid_month": valid_month,
-            "n_train": len(X_train),
-            "n_stop": len(X_stop),
-            "n_valid": len(X_valid),
-            "features": ",".join(FEATURES),
-            "trained_on": date.today().isoformat(),
-        })
+        mlflow.log_params(
+            {
+                "model": "LGBMClassifier",
+                "train_months": f"{train_months[0]}..{train_months[-1]}",
+                "n_train_months": n_train_months,
+                "stop_month": stop_month,
+                "valid_month": valid_month,
+                "n_train": len(X_train),
+                "n_stop": len(X_stop),
+                "n_valid": len(X_valid),
+                "features": ",".join(FEATURES),
+                "trained_on": date.today().isoformat(),
+            }
+        )
         mlflow.log_params(LGBM_PARAMS)
         mlflow.log_metrics(metrics)
         model_info = mlflow.sklearn.log_model(
@@ -177,13 +187,21 @@ def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path
         # The tag tells the registration step where the model of this run is.
         mlflow.set_tag("model_uri", model_info.model_uri)
 
-    logger.info("run %s: %d trees, pr_auc=%.4f, brier=%.4f", run.info.run_id, metrics["best_iteration"], metrics["pr_auc"], metrics["brier"])
+    logger.info(
+        "run %s: %d trees, pr_auc=%.4f, brier=%.4f",
+        run.info.run_id,
+        metrics["best_iteration"],
+        metrics["pr_auc"],
+        metrics["brier"],
+    )
     return {"run_id": run.info.run_id, "model_uri": model_info.model_uri, "valid_month": valid_month, **metrics}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--valid-month", required=True, help="YYYY-MM; the month before it stops training, the ones before that train")
+    parser.add_argument(
+        "--valid-month", required=True, help="YYYY-MM; the month before it stops training, the ones before that train"
+    )
     parser.add_argument("--n-train-months", type=int, default=N_TRAIN_MONTHS)
     parser.add_argument("--data-dir", type=Path, default=OUT_DIR)
     args = parser.parse_args()

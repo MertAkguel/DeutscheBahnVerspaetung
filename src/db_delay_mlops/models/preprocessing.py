@@ -24,11 +24,16 @@ class CategoryCaster(BaseEstimator, TransformerMixin):
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X = X.copy()  # never change the caller's DataFrame
         for col, categories in self.categories_.items():
-            X[col] = pd.Categorical(X[col], categories=categories)
+            values = X[col]
+            if isinstance(values.dtype, pd.CategoricalDtype):
+                # Already categories (load_months): renumber by value, unknown values become NaN
+                X[col] = values.cat.set_categories(categories)
+            else:
+                # Plain text (the API): unknown values -> NaN first, pandas will refuse them later
+                X[col] = pd.Categorical(values.where(values.isin(categories)), categories=categories)
         return X
-    
-    
-    
+
+
 class FillMissingText(BaseEstimator, TransformerMixin):
     """Replace missing values in text columns with "missing" (CatBoost cannot handle None in categories).
 

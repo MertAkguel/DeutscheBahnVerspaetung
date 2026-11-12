@@ -1,0 +1,31 @@
+# Runs on GitHub for every push and pull request: lint + tests.
+# The badge in the README and the green tick on GitHub come from here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.21"  # same as locally and in the Dockerfile
+          enable-cache: true
+
+      - name: Install packages
+        run: uv sync --frozen
+
+      - name: Lint
+        run: |
+          uv run ruff check --output-format github
+          uv run ruff format --check
+
+      - name: Test
+        run: uv run pytest

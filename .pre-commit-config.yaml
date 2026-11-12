@@ -1,0 +1,21 @@
+# Checks that run automatically before every "git commit".
+# Install once: uv run pre-commit install
+# Run on all files by hand: uv run pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files  # stops data files (parquet, mlflow.db) by accident
+        args: ["--maxkb=1000"]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4  # same version as ruff in uv.lock
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format

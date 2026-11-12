@@ -34,5 +34,24 @@ dev = [
     "numpy>=2.5.4",
     "optuna>=5.0.0",
     "plotly>=7.1.0",
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
     "xgboost>=3.4.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]  # "uv run pytest" looks only here, not in notebooks/ or data/
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["notebooks", "*.md"]  # exploration and docs, not production code
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle: basic style errors
+    "F",  # pyflakes: unused imports, undefined names
+    "I",  # isort: sorted imports
+    "B",  # bugbear: likely bugs
+    "UP",  # pyupgrade: modern Python syntax
 ]

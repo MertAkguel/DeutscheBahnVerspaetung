@@ -87,7 +87,9 @@ class DBApiClient:
 
     def plan(self, eva: str, hour: datetime) -> RawResponse:
         """Planned timetable of one station for one hour (local German time)."""
-        return self._get(f"/timetables/v1/plan/{eva}/{hour:%y%m%d}/{hour:%H}", api="timetables", endpoint="plan", eva=eva)
+        return self._get(
+            f"/timetables/v1/plan/{eva}/{hour:%y%m%d}/{hour:%H}", api="timetables", endpoint="plan", eva=eva
+        )
 
     def fchg(self, eva: str) -> RawResponse:
         """All currently known changes (delays, cancellations) of one station."""
