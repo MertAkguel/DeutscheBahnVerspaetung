@@ -1,0 +1,117 @@
+# Local stack: Airflow 3 (LocalExecutor) + Postgres + MLflow.
+#
+# Start:  docker compose up -d --build
+# UI:     Airflow http://localhost:8080, MLflow http://localhost:5000
+# Stop:   docker compose down          (data stays: Postgres volume, ./data, ./mlflow_store)
+
+# Shared settings for every Airflow container. "&airflow-common" names this block,
+# "<<: *airflow-common" pastes it into a service below (YAML anchors, so nothing is repeated).
+x-airflow-common: &airflow-common
+  build: .
+  image: db-delay-airflow:dev
+  # Run as your WSL user (id -u), so files written to ./data and ./logs belong to you
+  user: "${AIRFLOW_UID:-1000}:0"
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # Airflow 3: tasks report their state to the API server over HTTP
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    # All Airflow containers must sign and check task tokens with the same secret
+    AIRFLOW__API_AUTH__JWT_SECRET: local-dev-only-secret
+    # Local only: no login page, everyone is admin. Never like this on a server.
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+    # Our pipeline steps log to the MLflow container, not to localhost
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./data:/opt/pipeline/data
+  depends_on: &airflow-depends
+    postgres:
+      condition: service_healthy
+
+services:
+  # Airflow's memory: DAG runs, task states, schedules
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+
+  # One-off job: creates or upgrades Airflow's tables, then exits
+  airflow-init:
+    <<: *airflow-common
+    command: db migrate
+    restart: "no"
+
+  # Web UI and the API the tasks talk to
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  # Decides which task runs when, and starts it (LocalExecutor: as a process in this container)
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+      mlflow:
+        condition: service_started
+
+  # Reads the files in ./dags and stores the parsed DAGs in the database
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    restart: always
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  # Tracking server and model registry. Uses the mlflow from our image, so server and
+  # client have the same version. Keeps your existing runs and models (./mlflow_store).
+  mlflow:
+    image: db-delay-airflow:dev
+    user: "${AIRFLOW_UID:-1000}:0"
+    entrypoint: /opt/pipeline/.venv/bin/mlflow
+    command:
+      - server
+      - --backend-store-uri=sqlite:////mlflow_store/mlflow.db
+      - --artifacts-destination=/mlflow_store/mlartifacts
+      - --host=0.0.0.0
+      - --port=5000
+      # Containers call it "mlflow:5000", your browser "localhost:5000"
+      - --allowed-hosts=mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow_store:/mlflow_store
+    restart: always
+
+volumes:
+  postgres-db:

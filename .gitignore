@@ -231,7 +231,9 @@ docs/
 mlflow.db
 mlartifacts/
 mlruns/
+mlflow_store/
 
-
+# Airflow task logs (written by the containers)
+logs/
 
 catboost_info/
