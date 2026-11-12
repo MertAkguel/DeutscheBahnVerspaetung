@@ -855,50 +855,50 @@ name = "db-delay-mlops"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "catboost" },
     { name = "holidays" },
     { name = "httpx" },
     { name = "huggingface-hub" },
     { name = "lightgbm" },
     { name = "mlflow" },
-    { name = "optuna" },
     { name = "pandera", extra = ["polars"] },
     { name = "polars" },
     { name = "pydantic-settings" },
     { name = "scikit-learn" },
-    { name = "xgboost" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "catboost" },
     { name = "ipywidgets" },
     { name = "jupyterlab" },
     { name = "numpy" },
+    { name = "optuna" },
     { name = "plotly" },
+    { name = "xgboost" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "catboost", specifier = ">=1.2.10" },
     { name = "holidays", specifier = ">=0.107" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "huggingface-hub", specifier = ">=2.3.0" },
     { name = "lightgbm", specifier = ">=4.7.0" },
     { name = "mlflow", specifier = ">=3.17.2" },
-    { name = "optuna", specifier = ">=5.0.0" },
     { name = "pandera", extras = ["polars"], specifier = ">=0.35.0" },
     { name = "polars", specifier = ">=2.1.0" },
     { name = "pydantic-settings", specifier = ">=2.16.2" },
     { name = "scikit-learn", specifier = ">=1.9.1" },
-    { name = "xgboost", specifier = ">=3.4.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "catboost", specifier = ">=1.2.10" },
     { name = "ipywidgets", specifier = ">=8.1.9" },
     { name = "jupyterlab", specifier = ">=4.6.4" },
     { name = "numpy", specifier = ">=2.5.4" },
+    { name = "optuna", specifier = ">=5.0.0" },
     { name = "plotly", specifier = ">=7.1.0" },
+    { name = "xgboost", specifier = ">=3.4.1" },
 ]
 
 [[package]]
@@ -2542,11 +2542,11 @@ wheels = [
 
 [[package]]
 name = "nvidia-nccl-cu13"
-version = "2.32.3"
+version = "2.32.6"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/0a/c29c302036a06d27dd732588f3fd8ee89b1f7b0087e38c668ae7be8ff7b2/nvidia_nccl_cu13-2.32.3-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:a5bee92b2f4af218c109f8d221c3c9adcc752b94ae0ffcb0ed5abf9341a7724c", size = 305107282, upload-time = "2026-09-22T08:30:28.048Z" },
-    { url = "https://files.pythonhosted.org/packages/5b/29/6b277e63c92d91f9cb4d1a3a554e148983de39d54baa652bb52c798af78e/nvidia_nccl_cu13-2.32.3-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:1459723080ac889d73a26edfa3e04383a7928ab31ac8f0ec43b3ea9548b04ff3", size = 305100071, upload-time = "2026-09-22T08:30:53.705Z" },
+    { url = "https://files.pythonhosted.org/packages/98/c5/4ff6cec823fb775df3bb4d1b7ff87ab8b4d45477cff7e88a359f7a22cdac/nvidia_nccl_cu13-2.32.6-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:ee63091d0c00f5a0419e04d7f59f6dd6ebd54b14931cb0f9e3a626b91243233d", size = 206430779, upload-time = "2026-11-11T00:29:32.4Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/80/e15e798abf9d8c1ac0482573d95ba45824f498276e94f5ce6d7cd0540b4e/nvidia_nccl_cu13-2.32.6-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:76e7aad00482092baf01e13e66f441d54c96b5cf1e3f143dee27db7f731d41ba", size = 206592996, upload-time = "2026-11-11T00:29:52.352Z" },
 ]
 
 [[package]]
