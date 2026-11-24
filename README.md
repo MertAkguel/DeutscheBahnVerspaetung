@@ -1,5 +1,7 @@
 # Deutsche Bahn Delay Prediction (db-delay-mlops)
 
+[![CI](https://github.com/MertAkguel/DeutscheBahnVerspaetung/actions/workflows/ci.yml/badge.svg)](https://github.com/MertAkguel/DeutscheBahnVerspaetung/actions/workflows/ci.yml)
+
 An end-to-end MLOps project that predicts whether a Deutsche Bahn train will arrive at a station **at least 6 minutes late**. It is built as the capstone project of the [MLOps Zoomcamp](https://github.com/DataTalksClub/mlops-zoomcamp) by DataTalks.Club.
 
 ## Project idea
@@ -12,20 +14,118 @@ An end-to-end MLOps project that predicts whether a Deutsche Bahn train will arr
 
 ## Current status
 
-As of 2026-11-08: data, target and features are defined; a first experiment (July 2024 for training, July 2026 for testing) compared three baselines and three gradient boosting libraries in MLflow, and LightGBM was chosen. Tuning and the model registry are in progress.
+As of 2026-11-24: a monthly Airflow pipeline downloads, builds and validates new data, retrains LightGBM on a rolling 12-month window and promotes the model only if it beats the current champion. A FastAPI service serves the champion in its own container. Monitoring is next.
 
-| Component | Tool (planned) | Status |
+| Component | Tool | Status |
 | --- | --- | --- |
-| Problem description | this README | 🔄 in progress |
-| Data download and own collector | huggingface_hub, httpx, Polars | ✅ first version |
-| Data analysis and baselines | Jupyter, Polars, Plotly, scikit-learn | ✅ first version |
-| Target and feature definition | this README, `src/db_delay_mlops/features/` | ✅ first version |
-| Experiment tracking and model registry | MLflow 3, LightGBM | 🔄 in progress |
-| Workflow orchestration | Apache Airflow 3 | ⬜ open |
-| Model deployment | FastAPI, Docker | ⬜ open |
-| Monitoring with retraining on drift | Evidently, Grafana | ⬜ open |
-| Cloud and infrastructure as code | AWS, Terraform | ⬜ open |
-| Best practices | pytest, ruff, pre-commit, Makefile, GitHub Actions | ⬜ open |
+| Problem description | this README | ✅ |
+| Data download and own collector | huggingface_hub, httpx, Polars | ✅ |
+| Data analysis and baselines | Jupyter, Polars, Plotly, scikit-learn | ✅ |
+| Target and feature definition | this README, `src/db_delay_mlops/features/` | ✅ |
+| Experiment tracking and model registry | MLflow 3, LightGBM, quality gate with `@champion` / `@previous` | ✅ |
+| Workflow orchestration | Apache Airflow 3 (LocalExecutor), Docker Compose | ✅ |
+| Model deployment | FastAPI, Docker | ✅ local container |
+| Monitoring with retraining on drift | Evidently | 🔄 next |
+| Best practices | pytest (unit + integration), ruff, pre-commit, Makefile, GitHub Actions | ✅ |
+| Demo app | Streamlit | ⬜ planned |
+| Cloud and infrastructure as code | AWS, Terraform | ⬜ planned |
+
+## Architecture
+
+```
+                     every month (Airflow DAG monthly_training, 3rd of the month, 06:00 UTC)
+ Hugging Face ──► download ──► build_features ──► validate ──► train ──► register
+ Open-Meteo        (raw)        (row rules,        (pandera     (LightGBM,   (quality gate:
+ holidays                        features)          schema)      12 months)   better than @champion?)
+                                                                    │              │
+                                                                    ▼              ▼
+                                                              ┌──────────────────────────┐
+                                                              │ MLflow: runs + registry  │
+                                                              │ @champion  @previous     │
+                                                              └────────────┬─────────────┘
+                                                                           │ loaded at start-up
+ client (curl, Streamlit, LLM) ──► POST /predict ──► FastAPI ──────────────┘
+                                                     same feature code as training
+                                                     + current weather forecast
+```
+
+- **Training window:** for a month M, the trees learn on the 11 months before M−1, early stopping uses M−1, and M itself stays unseen. The new model and the champion are both scored on M, so the comparison is fair.
+- **Quality gate** (`models/register.py`): the new model replaces `@champion` only if its PR-AUC on M is higher; the old one becomes `@previous` for a one-command rollback. A model for an older month never replaces a newer champion, so a backfill cannot change production.
+- **No train-serve skew:** the API builds the 13 features with the same functions as the training pipeline (`features/serving.py`). A test checks on 2,000 real trains that both paths give identical features.
+- **Calibration** of the probabilities (`models/calibration.py`) exists but is switched off in `config/training.toml`.
+
+## Quickstart
+
+All commands run in the repository root. `make help` lists every shortcut.
+
+**1. Install** (Python packages and git hooks):
+
+```bash
+make install
+```
+
+**2. Data** for the months you want (the monthly pipeline needs the 12 months before a month, plus the month itself):
+
+```bash
+uv run python -m db_delay_mlops.data.download --start 2025-09 --end 2026-10
+make data MONTH=2026-10        # download, build and validate one month
+```
+
+**3. Start the stack** (Postgres, MLflow, Airflow, API). The first build takes about 10 minutes:
+
+```bash
+make up
+docker compose ps              # all services "Up", airflow-init "Exited (0)"
+```
+
+| Service | URL | What you can do |
+| --- | --- | --- |
+| Airflow | http://localhost:8080 | switch on and trigger the DAG `monthly_training`, read task logs |
+| MLflow | http://localhost:5000 | runs, metrics, models with the aliases `@champion` and `@previous` |
+| API | http://localhost:8000/docs | try every endpoint in the browser |
+
+The API needs a registered `@champion`. On a fresh setup, train and register one first (about an hour on 12 months of data):
+
+```bash
+make train MONTH=2026-10
+make restart-api
+```
+
+**4. Ask for a prediction:**
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"station": "Köln Hbf", "train_type": "RE", "line_number": "1",
+       "final_destination": "Aachen Hbf", "stop_number": 5,
+       "planned_arrival": "2026-11-25T17:42:00", "ride_start": "2026-11-25T17:11:00"}'
+```
+
+```json
+{"probability_late": 0.69, "risk": "high", "model_version": "2", "warnings": [],
+ "top_reasons": [{"feature": "final_destination_station", "contribution": 0.6}, ...]}
+```
+
+`planned_arrival` must lie within the next 7 days (the weather forecast is used). `GET /stations` lists the valid station names, `GET /model` the model that answers.
+
+**5. Stop everything** (data, runs and models stay):
+
+```bash
+make down
+```
+
+## Testing
+
+| Command | What runs | Needs |
+| --- | --- | --- |
+| `make test` | 80+ unit tests in a few seconds: month windows, row rules, target threshold, data validation, quality gate, feature building for the API, request checks, API endpoints with a tiny real model | nothing (no Docker, no internet) |
+| `make integration` | end-to-end tests against the running containers: API ↔ MLflow, the served version equals `@champion`, a prediction with the real weather forecast | `make up` and a champion |
+| `make lint` | ruff: style, imports, likely bugs, formatting | nothing |
+| `make check` | lint + unit tests, exactly what GitHub Actions runs on every push | nothing |
+
+- **pre-commit** runs ruff and a few file checks (large files, private keys, YAML/TOML syntax) before every `git commit`. Installed by `make install`.
+- **The train-serve skew test** (`tests/test_serving.py`) compares API features with the training table for 2,000 real trains of October 2026. It needs the local data and is skipped on GitHub Actions.
+- Tests never call external services: weather requests are replaced by fakes, files are written to temporary folders.
 
 ## Prerequisites
 
@@ -103,7 +203,7 @@ As of 2026-11-08: data, target and features are defined; a first experiment (Jul
 - Only train types with at least 1,000 arrivals are mapped. They cover 99.987 % of all arrivals. The remaining 137 types (0.013 %) are treated as unmapped and left out.
 - Operators were assigned by their most common line (`line_number`), e.g. `SWE` → `s_bahn` because its most common line is S2. Operators that run both S-Bahn and regional lines are therefore simplified. The `note` column explains every non-obvious choice.
 - **Why groups instead of raw train types:** the group stays stable when an operator changes its brand, and it allows evaluating the model per group. The S-Bahn makes up almost half of all arrivals, so an overall metric alone would mostly describe the S-Bahn.
-- **Planned check:** the feature pipeline will warn when a new month contains a train type that is not in the file, so brand changes are noticed instead of silently dropping trains.
+- **Check:** `data/validate.py` warns when more than 0.5 % of a new month's arrivals have a train type that is not in the file, so brand changes are noticed instead of silently dropping trains.
 
 ## Target and features
 
@@ -305,6 +405,9 @@ The differences between the three libraries are small (0.024 PR-AUC). More train
 config/
   stations.csv              # 146 EVA numbers with StaDa master data
   train_type_groups.csv     # train type -> long_distance / regional / s_bahn / exclude
+  training.toml             # training switches, e.g. calibrate = false
+dags/
+  monthly_training.py       # Airflow: download -> build -> validate -> train -> register
 notebooks/
   01_explore_hf_data.ipynb  # first look at the data
   02_station_map.ipynb      # interactive map, filter by train group and train type
@@ -316,23 +419,39 @@ src/db_delay_mlops/
   paths.py                  # absolute project paths
   data/
     download.py             # monthly files from Hugging Face, pinned to a commit
+    validate.py             # pandera schema + plausibility checks of a built month
     stations.py             # builds config/stations.csv with the StaDa API
     db_api.py               # DB API client: rate limits, retries, raw responses
     collect.py              # own collection of raw plan and fchg responses
   features/
+    build.py                # one month: row rules, target, all features -> data/processed/
+    serving.py              # the same features for API requests (no train-serve skew)
     station_info.py         # station -> federal state, coordinates
     holidays.py             # is_holiday
-    weather.py              # day-ahead weather forecast, weather categories
+    weather.py              # day-ahead forecasts (training) and current forecasts (API)
     columns.py              # feature lists and target, shared by all notebooks and scripts
   models/
+    train.py                # monthly training, logged to MLflow
+    register.py             # quality gate and aliases @champion / @previous
+    calibration.py          # optional probability calibration (off by default)
     preprocessing.py        # CategoryCaster, FillMissingText: saved together with the model
     evaluate.py             # metrics used to compare all models
+  api/
+    schemas.py              # Pydantic: what the API accepts and answers
+    predictor.py            # loads @champion, predicts, explains, warns about unknown values
+    main.py                 # FastAPI app and endpoints
+tests/                      # unit tests; tests/integration/ needs the running stack
+Dockerfile                  # Airflow image with the pipeline in its own venv
+Dockerfile.api              # slim image for the API
+docker-compose.yaml         # Postgres, MLflow, Airflow, API
+Makefile                    # shortcuts: make help
 data/                       # not in git: downloaded and collected data
+mlflow_store/               # not in git: MLflow database and model files
 ```
 
 ## Getting the data
 
-All commands run from the repository root.
+All commands run from the repository root. For the usual monthly steps, `make data MONTH=YYYY-MM` is enough (see [Quickstart](#quickstart)).
 
 ```bash
 # 1. Monthly files from Hugging Face (about 5 GB for 2024-07 to 2026-09)

@@ -1,7 +1,7 @@
-# Local stack: Airflow 3 (LocalExecutor) + Postgres + MLflow.
+# Local stack: Airflow 3 (LocalExecutor) + Postgres + MLflow + prediction API.
 #
 # Start:  docker compose up -d --build
-# UI:     Airflow http://localhost:8080, MLflow http://localhost:5000
+# UI:     Airflow http://localhost:8080, MLflow http://localhost:5000, API http://localhost:8000/docs
 # Stop:   docker compose down          (data stays: Postgres volume, ./data, ./mlflow_store)
 
 # Shared settings for every Airflow container. "&airflow-common" names this block,
@@ -111,6 +111,33 @@ services:
       - "5000:5000"
     volumes:
       - ./mlflow_store:/mlflow_store
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5000/health"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+    restart: always
+
+  # Prediction API: loads models:/db-delay-lightgbm@champion at start-up.
+  # After a new champion: docker compose restart api
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: db-delay-api:dev
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports:
+      - "8000:8000"
+    depends_on:
+      mlflow:
+        condition: service_healthy  # no model without MLflow
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: always
 
 volumes:

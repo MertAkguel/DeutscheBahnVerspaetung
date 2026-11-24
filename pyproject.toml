@@ -44,6 +44,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]  # "uv run pytest" looks only here, not in notebooks/ or data/
+markers = ["integration: needs the running Docker stack (make up)"]
 
 [tool.ruff]
 line-length = 120

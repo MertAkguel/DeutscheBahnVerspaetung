@@ -1,13 +1,13 @@
 # Short names for the commands used most. "make help" lists them.
 # Recipes must be indented with a TAB, not spaces.
 
-# Default month; override with: make train MONTH=2026-11
+# Default month; override with: make data MONTH=2026-11
 MONTH ?= 2026-10
 
-.PHONY: help install lint format test check up down logs train
+.PHONY: help install lint format test integration check data up down restart-api logs train api
 
 help:  ## Show this list
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
 
 install:  ## Install all packages and the git hooks
 	uv sync
@@ -21,16 +21,27 @@ format:  ## Fix style automatically
 	uv run ruff check --fix
 	uv run ruff format
 
-test:  ## Run the tests
-	uv run pytest
+test:  ## Run the unit tests (seconds, no Docker, no internet)
+	uv run pytest -m "not integration"
+
+integration:  ## Test the running stack end to end (needs: make up)
+	uv run pytest -m integration -v
 
 check: lint test  ## Everything CI runs
 
-up:  ## Start Airflow, Postgres and MLflow (Airflow: localhost:8080, MLflow: localhost:5000)
+data:  ## Download, build and validate one month, e.g. make data MONTH=2026-11
+	uv run python -m db_delay_mlops.data.download --start $(MONTH)
+	uv run python -m db_delay_mlops.features.build --month $(MONTH)
+	uv run python -m db_delay_mlops.data.validate --month $(MONTH)
+
+up:  ## Start everything: Airflow :8080, MLflow :5000, API :8000
 	docker compose up -d --build
 
-down:  ## Stop the stack (data stays)
+down:  ## Stop the stack (data, runs and models stay)
 	docker compose down
+
+restart-api:  ## Reload the API after a new champion
+	docker compose restart api
 
 logs:  ## Follow the logs of the scheduler
 	docker compose logs -f airflow-scheduler
@@ -38,3 +49,6 @@ logs:  ## Follow the logs of the scheduler
 train:  ## Train and register one month by hand, e.g. make train MONTH=2026-11
 	run_id=$$(uv run python -m db_delay_mlops.models.train --valid-month $(MONTH) | tail -1) && \
 	uv run python -m db_delay_mlops.models.register --run-id $$run_id --valid-month $(MONTH)
+
+api:  ## Run the API locally with auto-reload, for development (MLflow must run)
+	uv run uvicorn db_delay_mlops.api.main:app --reload --port 8000
