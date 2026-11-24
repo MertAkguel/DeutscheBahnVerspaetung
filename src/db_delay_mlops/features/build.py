@@ -43,7 +43,6 @@ def scan_arrivals(month: str) -> pl.LazyFrame:
     """Plan for one monthly file: only needed columns and the row rules. Nothing is read yet."""
     stations = pl.read_csv(STATIONS_FILE, schema_overrides={"eva": pl.String})
     rail_evas = stations.filter(pl.col("collect"))["eva"]
-    groups = pl.read_csv(TRAIN_TYPE_GROUPS_FILE).select("train_type", train_group="group")
 
     return (
         pl.scan_parquet(HF_DIR / f"data-{month}.parquet")
@@ -54,19 +53,36 @@ def scan_arrivals(month: str) -> pl.LazyFrame:
             ~pl.col("arrival_is_canceled"),  # cancelled arrivals are excluded
             pl.col("has_plan_record"),  # only stops that are in the timetable
         )
-        .join(groups.lazy(), on="train_type", how="left")
+        .pipe(add_train_group)
         .filter(pl.col("train_group").is_in(RAIL_GROUPS))  # buses and unmapped train types out
         .join(stations.lazy().select("eva", "stada_name"), on="eva", how="left")
     )
 
 
+def add_train_group(lf: pl.LazyFrame) -> pl.LazyFrame:
+    """train_type -> train_group from config/train_type_groups.csv (null if the type is not listed).
+
+    Shared with features/serving.py, so the API groups train types exactly like training.
+    """
+    groups = pl.read_csv(TRAIN_TYPE_GROUPS_FILE).select("train_type", train_group="group")
+    return lf.join(groups.lazy(), on="train_type", how="left")
+
+
 def add_timetable_features(lf: pl.LazyFrame) -> pl.LazyFrame:
-    """Target and the features that come from the timetable itself."""
-    line_clean = pl.col("line_number").str.replace_all(" ", "")
+    """Target and the features that come from the timetable itself (training data)."""
     return lf.with_columns(
         ride_start=pl.col("id").str.extract(r"-(\d{10})-\d+$").str.to_datetime("%y%m%d%H%M", time_unit="ns"),
-    ).with_columns(
         y=((pl.col("arrival_change_time") - pl.col("arrival_planned_time")).dt.total_minutes() >= 6).cast(pl.Int8),
+    ).pipe(add_plan_features)
+
+
+def add_plan_features(lf: pl.LazyFrame) -> pl.LazyFrame:
+    """Features from the PLAN only: known the day before, so the API computes them the same way.
+
+    Needs: arrival_planned_time, ride_start, train_type, line_number.
+    """
+    line_clean = pl.col("line_number").str.replace_all(" ", "")
+    return lf.with_columns(
         hour=pl.col("arrival_planned_time").dt.hour(),
         weekday=pl.col("arrival_planned_time").dt.weekday(),  # 1 = Monday, 7 = Sunday (ISO)
         month=pl.col("arrival_planned_time").dt.month(),

@@ -29,7 +29,8 @@ from db_delay_mlops.paths import WEATHER_DIR
 
 logger = logging.getLogger(__name__)
 
-API_URL = "https://previous-runs-api.open-meteo.com/v1/forecast"
+API_URL = "https://previous-runs-api.open-meteo.com/v1/forecast"  # past day-ahead forecasts (training)
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"  # the current forecast (API, trains in the future)
 VARIABLES = ["temperature_2m", "precipitation", "weather_code"]
 
 # WMO weather codes -> readable category (https://open-meteo.com/en/docs, section "WMO Weather interpretation codes")
@@ -72,23 +73,53 @@ def fetch_month(month: date, batch_size: int = 25) -> pl.DataFrame:
             timeout=60,
         )
         response.raise_for_status()
-        # the API returns one result per location, in the order of the request
-        for name, result in zip(batch["stada_name"], response.json(), strict=True):
-            hourly = result["hourly"]
-            frames.append(
-                pl.DataFrame(
-                    {
-                        "stada_name": name,
-                        "hour": hourly["time"],
-                        **{v: hourly[f"{v}_previous_day1"] for v in VARIABLES},
-                    }
-                )
-            )
+        frames.extend(_station_frames(batch["stada_name"], response.json(), suffix="_previous_day1"))
         logger.info(
             "Weather %s: %d/%d stations", f"{month:%Y-%m}", min(start + batch_size, coords.height), coords.height
         )
         time.sleep(1)  # stay far below 600 calls per minute
 
+    return _combine(frames)
+
+
+def fetch_forecast(stations: list[str], start: date, end: date) -> pl.DataFrame:
+    """Hourly current forecast for some stations, from `start` to `end` (at most about 16 days ahead)."""
+    coords = lookup("stada_name").filter(pl.col("stada_name").is_in(stations)).sort("stada_name")
+    response = httpx.get(
+        FORECAST_URL,
+        params={
+            "latitude": ",".join(str(x) for x in coords["lat"]),
+            "longitude": ",".join(str(x) for x in coords["lon"]),
+            "start_date": f"{start:%Y-%m-%d}",
+            "end_date": f"{end:%Y-%m-%d}",
+            "hourly": ",".join(VARIABLES),  # same variables as in training, without "_previous_day1"
+            "timezone": "Europe/Berlin",
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    results = response.json()
+    if isinstance(results, dict):  # one location: Open-Meteo returns one object instead of a list
+        results = [results]
+    return _combine(_station_frames(coords["stada_name"], results, suffix=""))
+
+
+def _station_frames(names: pl.Series, results: list[dict], suffix: str) -> list[pl.DataFrame]:
+    """One table per station from an Open-Meteo answer (one result per location, in request order)."""
+    return [
+        pl.DataFrame(
+            {
+                "stada_name": name,
+                "hour": result["hourly"]["time"],
+                **{v: result["hourly"][f"{v}{suffix}"] for v in VARIABLES},
+            }
+        )
+        for name, result in zip(names, results, strict=True)
+    ]
+
+
+def _combine(frames: list[pl.DataFrame]) -> pl.DataFrame:
+    """Same column types for past and current forecasts, so training and API see identical data."""
     return (
         pl.concat(frames)
         .with_columns(
@@ -128,9 +159,28 @@ def add_weather(
     check_known(df[station_col], station_col)
     hours = df[time_col].dt.truncate("1h").dt.cast_time_unit("us")  # timetable uses ns, weather us
     months = hours.dt.truncate("1mo").unique().drop_nulls().sort().to_list()
-    weather = pl.concat([load_month(m.date(), weather_dir) for m in months]).with_columns(
-        pl.col("hour").dt.cast_time_unit("us")
-    )
+    weather = pl.concat([load_month(m.date(), weather_dir) for m in months])
+    return _join_weather(df, weather, hours, station_col)
+
+
+def add_forecast(
+    df: pl.DataFrame, time_col: str = "arrival_planned_time", station_col: StationKey = "stada_name"
+) -> pl.DataFrame:
+    """Like add_weather, but with the CURRENT forecast: for trains in the next days (the API).
+
+    For a train tomorrow, today's forecast is a day-ahead forecast, like the `_previous_day1`
+    values the model was trained with. Further ahead the forecast gets less accurate.
+    """
+    check_known(df[station_col], station_col)
+    hours = df[time_col].dt.truncate("1h").dt.cast_time_unit("us")
+    stations = lookup(station_col).filter(pl.col(station_col).is_in(df[station_col].implode()))["stada_name"]
+    weather = fetch_forecast(stations.unique().to_list(), hours.min().date(), hours.max().date())
+    return _join_weather(df, weather, hours, station_col)
+
+
+def _join_weather(df: pl.DataFrame, weather: pl.DataFrame, hours: pl.Series, station_col: StationKey) -> pl.DataFrame:
+    """Attach the weather of each row's station and hour (shared by add_weather and add_forecast)."""
+    weather = weather.with_columns(pl.col("hour").dt.cast_time_unit("us"))
     station_names = lookup(station_col).select(station_col, _station="stada_name")
     return (
         df.with_columns(_hour=hours)
