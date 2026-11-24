@@ -2,7 +2,12 @@
 
 import pytest
 
-from db_delay_mlops.models.train import previous_months
+from db_delay_mlops.models.train import load_training_config, previous_months
+
+
+def test_training_config_has_a_calibration_switch():
+    config = load_training_config()
+    assert isinstance(config["calibrate"], bool)  # "false" as text would be a bug: TOML must say false
 
 
 def test_previous_months_within_a_year():

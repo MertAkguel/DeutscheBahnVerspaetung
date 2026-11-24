@@ -1,0 +1,6 @@
+# Settings for the monthly training (models/train.py).
+# Changes here need a new Docker image for Airflow: make up
+
+# Correct the height of the probabilities after training (models/calibration.py).
+# The ranking of the trains, and so PR-AUC, stays the same. Off until we decide to use it.
+calibrate = false

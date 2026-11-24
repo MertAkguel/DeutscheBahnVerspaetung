@@ -19,6 +19,7 @@ import argparse
 import logging
 import os
 import time
+import tomllib
 from datetime import date
 from pathlib import Path
 
@@ -31,10 +32,21 @@ from sklearn.pipeline import Pipeline
 
 from db_delay_mlops.features.build import OUT_DIR
 from db_delay_mlops.features.columns import FEATURES, TARGET, TEXT_FEATURES
+from db_delay_mlops.models.calibration import CalibratedPipeline
 from db_delay_mlops.models.evaluate import evaluate
 from db_delay_mlops.models.preprocessing import CategoryCaster
+from db_delay_mlops.paths import CONFIG_DIR
 
 logger = logging.getLogger(__name__)
+
+TRAINING_CONFIG = CONFIG_DIR / "training.toml"
+
+
+def load_training_config(path: Path = TRAINING_CONFIG) -> dict:
+    """Settings from config/training.toml, e.g. {"calibrate": False}."""
+    with open(path, "rb") as file:  # tomllib (standard library) reads bytes, hence "rb"
+        return tomllib.load(file)
+
 
 EXPERIMENT = "db-delay-monthly"
 N_TRAIN_MONTHS = 11  # + 1 stop month = 12 months before valid_month
@@ -65,6 +77,7 @@ LOG_EVERY_N_TREES = 100  # progress line in the log, so a long run is visibly al
 # Types skops may load when the model is read again (see docs/baselines-und-vorverarbeitung.md)
 TRUSTED_TYPES = [
     "collections.OrderedDict",
+    "db_delay_mlops.models.calibration.CalibratedPipeline",
     "db_delay_mlops.models.preprocessing.CategoryCaster",
     "lightgbm.basic.Booster",
     "lightgbm.sklearn.LGBMClassifier",
@@ -110,11 +123,16 @@ def make_pipeline() -> Pipeline:
     )
 
 
-def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path = OUT_DIR) -> dict:
+def train(
+    valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path = OUT_DIR, calibrate: bool | None = None
+) -> dict:
     """Train on the months before valid_month, evaluate on valid_month, log one MLflow run.
 
+    calibrate=None: take the setting from config/training.toml.
     Returns run_id and metrics, so the next step knows which model to compare.
     """
+    if calibrate is None:
+        calibrate = load_training_config()["calibrate"]
     stop_month = previous_months(valid_month, 1)[0]
     train_months = previous_months(stop_month, n_train_months)
     X_train, y_train = load_months(train_months, data_dir)
@@ -151,14 +169,24 @@ def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path
         )
         fit_seconds = time.perf_counter() - start
 
-        p_valid = pipeline.predict_proba(X_valid)[:, 1]
+        # Optional: correct the height of the probabilities on the stop month (the trees never trained on it)
+        model = CalibratedPipeline(pipeline).fit(X_stop, y_stop) if calibrate else pipeline
+
+        p_valid = model.predict_proba(X_valid)[:, 1]
         metrics = evaluate(y_valid, p_valid) | {
             "fit_seconds": fit_seconds,
             "best_iteration": pipeline[-1].best_iteration_,
             "valid_late_share": float(y_valid.mean()),
+            "valid_mean_prediction": float(p_valid.mean()),  # close to valid_late_share = well calibrated
         }
+        if calibrate:
+            metrics |= {
+                "raw_brier": evaluate(y_valid, pipeline.predict_proba(X_valid)[:, 1])["brier"],  # before calibration
+                "calibration_slope": model.slope_,
+                "calibration_intercept": model.intercept_,
+            }
 
-        mlflow.set_tags({"stage": "monthly", "valid_month": valid_month})
+        mlflow.set_tags({"stage": "monthly", "valid_month": valid_month, "calibrated": str(calibrate).lower()})
         mlflow.log_params(
             {
                 "model": "LGBMClassifier",
@@ -176,7 +204,7 @@ def train(valid_month: str, n_train_months: int = N_TRAIN_MONTHS, data_dir: Path
         mlflow.log_params(LGBM_PARAMS)
         mlflow.log_metrics(metrics)
         model_info = mlflow.sklearn.log_model(
-            pipeline,
+            model,
             name="model",
             # The API will send plain text, not pandas categories: the example (and so the signature) must match that
             input_example=X_valid.head(5).astype({col: object for col in TEXT_FEATURES}),
@@ -204,9 +232,11 @@ def main() -> None:
     )
     parser.add_argument("--n-train-months", type=int, default=N_TRAIN_MONTHS)
     parser.add_argument("--data-dir", type=Path, default=OUT_DIR)
+    # --calibrate / --no-calibrate override config/training.toml for one run
+    parser.add_argument("--calibrate", action=argparse.BooleanOptionalAction, default=None)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    result = train(args.valid_month, args.n_train_months, args.data_dir)
+    result = train(args.valid_month, args.n_train_months, args.data_dir, calibrate=args.calibrate)
     # Last line on stdout = run id. Airflow's bash task passes the last output line to the next task.
     print(result["run_id"])
 
