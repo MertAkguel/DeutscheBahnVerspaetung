@@ -14,7 +14,7 @@ An end-to-end MLOps project that predicts whether a Deutsche Bahn train will arr
 
 ## Current status
 
-As of 2026-11-24: a monthly Airflow pipeline downloads, builds and validates new data, retrains LightGBM on a rolling 12-month window and promotes the model only if it beats the current champion. A FastAPI service serves the champion in its own container. Monitoring is next.
+As of 2026-11-24: a monthly Airflow pipeline downloads, builds and validates new data, checks drift and how the current champion does on the new month, retrains LightGBM on a rolling 12-month window only when needed, and promotes the new model only if it beats the champion. A FastAPI service serves the champion in its own container.
 
 | Component | Tool | Status |
 | --- | --- | --- |
@@ -25,26 +25,28 @@ As of 2026-11-24: a monthly Airflow pipeline downloads, builds and validates new
 | Experiment tracking and model registry | MLflow 3, LightGBM, quality gate with `@champion` / `@previous` | ✅ |
 | Workflow orchestration | Apache Airflow 3 (LocalExecutor), Docker Compose | ✅ |
 | Model deployment | FastAPI, Docker | ✅ local container |
-| Monitoring with retraining on drift | Evidently | 🔄 next |
+| Monitoring with conditional retraining | own PSI drift, champion scored on each new month, Airflow branching | ✅ |
 | Best practices | pytest (unit + integration), ruff, pre-commit, Makefile, GitHub Actions | ✅ |
-| Demo app | Streamlit | ⬜ planned |
+| Demo app | Streamlit: a station's planned arrivals with their delay risk | ✅ |
 | Cloud and infrastructure as code | AWS, Terraform | ⬜ planned |
 
 ## Architecture
 
 ```
-                     every month (Airflow DAG monthly_training, 3rd of the month, 06:00 UTC)
- Hugging Face ──► download ──► build_features ──► validate ──► train ──► register
- Open-Meteo        (raw)        (row rules,        (pandera     (LightGBM,   (quality gate:
- holidays                        features)          schema)      12 months)   better than @champion?)
-                                                                    │              │
-                                                                    ▼              ▼
-                                                              ┌──────────────────────────┐
-                                                              │ MLflow: runs + registry  │
-                                                              │ @champion  @previous     │
-                                                              └────────────┬─────────────┘
-                                                                           │ loaded at start-up
- client (curl, Streamlit, LLM) ──► POST /predict ──► FastAPI ──────────────┘
+                  every month (Airflow DAG monthly_training, 3rd of the month, 06:00 UTC)
+ Hugging Face ──► download ──► build_features ──► validate ──► monitor ──┬─ retrain ──► train ──► register
+ Open-Meteo        (raw)        (row rules,        (pandera     (drift,   │             (LightGBM,  (quality gate:
+ holidays                        features)          schema)      champion │              12 months)  better than
+                                                                 on new   └─ skip ────► keep_champion  @champion?)
+                                                                 month)
+                                                                    │                        │           │
+                                                                    ▼                        ▼           ▼
+                                                              ┌──────────────────────────────────────────────┐
+                                                              │ MLflow: monitoring reports, runs, registry   │
+                                                              │ @champion  @previous                         │
+                                                              └───────────────────────┬──────────────────────┘
+                                                                                      │ loaded at start-up
+ client (curl, Streamlit, LLM) ──► POST /predict ──► FastAPI ─────────────────────────┘
                                                      same feature code as training
                                                      + current weather forecast
 ```
@@ -83,6 +85,9 @@ docker compose ps              # all services "Up", airflow-init "Exited (0)"
 | Airflow | http://localhost:8080 | switch on and trigger the DAG `monthly_training`, read task logs |
 | MLflow | http://localhost:5000 | runs, metrics, models with the aliases `@champion` and `@previous` |
 | API | http://localhost:8000/docs | try every endpoint in the browser |
+| Demo | http://localhost:8501 | pick a station and hours: the planned arrivals with their delay risk and the reasons |
+
+The demo reads the timetable from the DB Timetables API and needs `DB_CLIENT_ID` and `DB_API_KEY` in `.env` (free key, see [Prerequisites](#prerequisites)). Without a key it still offers a form for a single train.
 
 The API needs a registered `@champion`. On a fresh setup, train and register one first (about an hour on 12 months of data):
 
@@ -90,6 +95,8 @@ The API needs a registered `@champion`. On a fresh setup, train and register one
 make train MONTH=2026-10
 make restart-api
 ```
+
+When the monthly DAG registers a new champion, its last task calls `POST /reload`, so the API serves the new model without a restart.
 
 **4. Ask for a prediction:**
 
@@ -126,6 +133,32 @@ make down
 - **pre-commit** runs ruff and a few file checks (large files, private keys, YAML/TOML syntax) before every `git commit`. Installed by `make install`.
 - **The train-serve skew test** (`tests/test_serving.py`) compares API features with the training table for 2,000 real trains of October 2026. It needs the local data and is skipped on GitHub Actions.
 - Tests never call external services: weather requests are replaced by fakes, files are written to temporary folders.
+
+## Monitoring
+
+Once a month is over, its true delays are known. The task `monitor` in the monthly DAG uses this before any training happens (`src/db_delay_mlops/monitoring/`):
+
+| Check | How | Effect |
+| --- | --- | --- |
+| **Model quality** | the current `@champion` predicts the new month; its ROC-AUC is compared with its value at registration | drop > 0.02 → **retrain** |
+| **Model age** | months since the champion's validation month | ≥ 3 months → **retrain** (safety net) |
+| **Data drift** | PSI per feature, new month vs. a sample of the 12 months before (< 0.1 stable, > 0.25 strong) | strong drift → warning |
+| **Target drift** | late share of the new month vs. at registration | change > 5 percentage points → warning |
+| **Calibration** | mean prediction vs. real late share | gap > 3 percentage points → warning |
+
+- **Conditional workflow:** `monitor` prints `retrain` or `skip`, and the branch task `retrain_needed` runs either `train → register` or `keep_champion`. The training (about an hour) only runs when it is needed; the other path shows as *skipped* in Airflow.
+- **Why drift alone does not retrain:** a single month always differs from a whole year, e.g. the temperature in winter. The model has learned from the past 12 months, including the last winter, so drift is a hint for a human, not proof that the model got worse. The decision rests on the model's measured quality.
+- **Why ROC-AUC and not PR-AUC across months:** PR-AUC depends on the share of late trains, which differs from month to month; ROC-AUC does not.
+- **Results:** every check is a run `monitor-YYYY-MM` in the MLflow experiment `db-delay-monitoring`, with all metrics (one `psi_<feature>` per feature), the decision as a tag, and `report.md` and `drift.csv` as artifacts.
+- **Answers the API really gave:** the API appends every prediction to `data/predictions/predictions-YYYY-MM-DD.jsonl` (one JSON line each). Once the month is over, `monitoring/served.py` matches them with the real arrivals (same station, planned time and destination) and reports `served_roc_auc`, `served_brier` and the mean prediction against the real late share. These numbers are reported but do not trigger retraining, because they rest on few requests.
+
+October 2026, champion v2: ROC-AUC unchanged (0.798), strong drift only in `temperature_2m` (PSI 1.65, an autumn month against the whole year), so the decision was **keep the champion**.
+
+Run it by hand for one month:
+
+```bash
+uv run python -m db_delay_mlops.monitoring.monitor --month 2026-10
+```
 
 ## Prerequisites
 
@@ -407,7 +440,7 @@ config/
   train_type_groups.csv     # train type -> long_distance / regional / s_bahn / exclude
   training.toml             # training switches, e.g. calibrate = false
 dags/
-  monthly_training.py       # Airflow: download -> build -> validate -> train -> register
+  monthly_training.py       # Airflow: download -> build -> validate -> monitor -> (train -> register)
 notebooks/
   01_explore_hf_data.ipynb  # first look at the data
   02_station_map.ipynb      # interactive map, filter by train group and train type
@@ -420,6 +453,7 @@ src/db_delay_mlops/
   data/
     download.py             # monthly files from Hugging Face, pinned to a commit
     validate.py             # pandera schema + plausibility checks of a built month
+    timetable.py            # planned arrivals of a station (Timetables API XML) for the demo
     stations.py             # builds config/stations.csv with the StaDa API
     db_api.py               # DB API client: rate limits, retries, raw responses
     collect.py              # own collection of raw plan and fchg responses
@@ -436,14 +470,23 @@ src/db_delay_mlops/
     calibration.py          # optional probability calibration (off by default)
     preprocessing.py        # CategoryCaster, FillMissingText: saved together with the model
     evaluate.py             # metrics used to compare all models
+  monitoring/
+    drift.py                # PSI per feature: new month vs. the 12 months before
+    performance.py          # the current champion scored on the new month
+    decide.py               # rules: retrain or keep the champion, warnings
+    served.py               # logged API predictions vs. real arrivals
+    monitor.py              # runs all checks, logs to MLflow, prints retrain/skip for Airflow
   api/
     schemas.py              # Pydantic: what the API accepts and answers
     predictor.py            # loads @champion, predicts, explains, warns about unknown values
-    main.py                 # FastAPI app and endpoints
+    prediction_log.py       # appends every prediction to data/predictions/
+    main.py                 # FastAPI app and endpoints, incl. POST /reload
+  demo/
+    app.py                  # Streamlit demo: timetable + API
 tests/                      # unit tests; tests/integration/ needs the running stack
 Dockerfile                  # Airflow image with the pipeline in its own venv
 Dockerfile.api              # slim image for the API
-docker-compose.yaml         # Postgres, MLflow, Airflow, API
+docker-compose.yaml         # Postgres, MLflow, Airflow, API, Streamlit demo
 Makefile                    # shortcuts: make help
 data/                       # not in git: downloaded and collected data
 mlflow_store/               # not in git: MLflow database and model files

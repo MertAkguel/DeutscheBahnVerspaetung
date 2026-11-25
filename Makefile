@@ -4,7 +4,7 @@
 # Default month; override with: make data MONTH=2026-11
 MONTH ?= 2026-10
 
-.PHONY: help install lint format test integration check data up down restart-api logs train api
+.PHONY: help install lint format test integration check data up down restart-api logs train api demo
 
 help:  ## Show this list
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
@@ -34,7 +34,8 @@ data:  ## Download, build and validate one month, e.g. make data MONTH=2026-11
 	uv run python -m db_delay_mlops.features.build --month $(MONTH)
 	uv run python -m db_delay_mlops.data.validate --month $(MONTH)
 
-up:  ## Start everything: Airflow :8080, MLflow :5000, API :8000
+up:  ## Start everything: Airflow :8080, MLflow :5000, API :8000, demo :8501
+	mkdir -p data/predictions logs mlflow_store  # created by you, not by Docker (which would make them root's)
 	docker compose up -d --build
 
 down:  ## Stop the stack (data, runs and models stay)
@@ -52,3 +53,6 @@ train:  ## Train and register one month by hand, e.g. make train MONTH=2026-11
 
 api:  ## Run the API locally with auto-reload, for development (MLflow must run)
 	uv run uvicorn db_delay_mlops.api.main:app --reload --port 8000
+
+demo:  ## Run the Streamlit demo locally, for development (the API must run)
+	uv run streamlit run src/db_delay_mlops/demo/app.py

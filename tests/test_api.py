@@ -53,10 +53,18 @@ def tiny_model():
 
 
 @pytest.fixture
-def client(tiny_model, monkeypatch):
+def client(tiny_model, monkeypatch, tmp_path):
     monkeypatch.setattr(serving, "add_forecast", fake_weather)
-    info = ModelInfo(model_name="db-delay-lightgbm", model_version="test", valid_month="2026-10", valid_pr_auc=0.5)
-    app = create_app(load_predictor=lambda: Predictor(model=tiny_model, info=info))
+    monkeypatch.setenv("PREDICTION_LOG_DIR", str(tmp_path))  # test predictions must not land in data/predictions
+    # Every load gets a new version number: the reload test can see that the model changed
+    versions = iter(range(1, 100))
+
+    def load():
+        version = f"test-{next(versions)}"
+        info = ModelInfo(model_name="db-delay-lightgbm", model_version=version, valid_month="2026-10", valid_pr_auc=0.5)
+        return Predictor(model=tiny_model, info=info)
+
+    app = create_app(load_predictor=load)
     with TestClient(app) as client:  # "with" runs the lifespan: the model is "loaded" here
         yield client
 
@@ -84,7 +92,27 @@ def test_health(client):
 
 
 def test_model_info(client):
-    assert client.get("/model").json()["model_version"] == "test"
+    assert client.get("/model").json()["model_version"] == "test-1"
+
+
+def test_reload_loads_the_champion_again(client):
+    before = client.get("/model").json()["model_version"]
+    response = client.post("/reload")
+    assert response.status_code == 200
+    assert response.json()["model_version"] != before  # the loader was called again
+    assert client.get("/model").json()["model_version"] == response.json()["model_version"]
+
+
+def test_train_types_list(client):
+    types = client.get("/train-types").json()
+    assert "ICE" in types and "RE" in types
+    assert "Bus" not in types
+
+
+def test_predictions_are_logged(client, tmp_path):
+    client.post("/predict/batch", json={"arrivals": [arrival(), arrival()]})
+    [file] = tmp_path.glob("predictions-*.jsonl")
+    assert len(file.read_text().splitlines()) == 2
 
 
 def test_stations_list(client):
@@ -99,7 +127,7 @@ def test_predict(client):
     body = response.json()
     assert 0 <= body["probability_late"] <= 1
     assert body["risk"] in {"low", "medium", "high"}
-    assert body["model_version"] == "test"
+    assert body["model_version"] == "test-1"
     assert len(body["top_reasons"]) == 3
     assert {r["feature"] for r in body["top_reasons"]} <= set(FEATURES)
     assert body["warnings"] == []  # Aachen Hbf and RE1 are known to the tiny model

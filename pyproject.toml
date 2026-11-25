@@ -18,6 +18,7 @@ dependencies = [
     "polars>=2.1.0",
     "pydantic-settings>=2.16.2",
     "scikit-learn>=1.9.1",
+    "streamlit>=1.67.0",
     "uvicorn>=0.54.0",
 ]
 

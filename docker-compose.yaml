@@ -1,7 +1,8 @@
-# Local stack: Airflow 3 (LocalExecutor) + Postgres + MLflow + prediction API.
+# Local stack: Airflow 3 (LocalExecutor) + Postgres + MLflow + prediction API + Streamlit demo.
 #
-# Start:  docker compose up -d --build
-# UI:     Airflow http://localhost:8080, MLflow http://localhost:5000, API http://localhost:8000/docs
+# Start:  make up   (creates the folders below, then: docker compose up -d --build)
+# UI:     Airflow http://localhost:8080, MLflow http://localhost:5000, API http://localhost:8000/docs,
+#         demo http://localhost:8501
 # Stop:   docker compose down          (data stays: Postgres volume, ./data, ./mlflow_store)
 
 # Shared settings for every Airflow container. "&airflow-common" names this block,
@@ -24,6 +25,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
     # Our pipeline steps log to the MLflow container, not to localhost
     MLFLOW_TRACKING_URI: http://mlflow:5000
+    # The DAG tells the API to load a new champion (task reload_api)
+    API_URL: http://api:8000
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
@@ -96,6 +99,7 @@ services:
   # Tracking server and model registry. Uses the mlflow from our image, so server and
   # client have the same version. Keeps your existing runs and models (./mlflow_store).
   mlflow:
+    build: .  # same image as Airflow; "build" so a fresh clone does not try to download it
     image: db-delay-airflow:dev
     user: "${AIRFLOW_UID:-1000}:0"
     entrypoint: /opt/pipeline/.venv/bin/mlflow
@@ -118,8 +122,8 @@ services:
       start_period: 20s
     restart: always
 
-  # Prediction API: loads models:/db-delay-lightgbm@champion at start-up.
-  # After a new champion: docker compose restart api
+  # Prediction API: loads models:/db-delay-lightgbm@champion at start-up
+  # and again on POST /reload (the DAG calls it after a new champion).
   api:
     build:
       context: .
@@ -129,6 +133,8 @@ services:
       MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8000:8000"
+    volumes:
+      - ./data/predictions:/app/data/predictions  # D6: every prediction, read by the monitoring
     depends_on:
       mlflow:
         condition: service_healthy  # no model without MLflow
@@ -138,6 +144,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    restart: always
+
+  # Streamlit demo: tomorrow's arrivals at a station with their delay risk (http://localhost:8501).
+  # Same image as the API; it only talks to the API over HTTP and never loads the model itself.
+  demo:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: db-delay-api:dev
+    command:
+      ["streamlit", "run", "src/db_delay_mlops/demo/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_URL: http://api:8000
+    env_file:
+      - path: .env  # DB_CLIENT_ID and DB_API_KEY for the timetable; without them the demo has a manual form
+        required: false
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: always
 
 volumes:

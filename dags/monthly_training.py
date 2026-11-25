@@ -1,7 +1,11 @@
-"""Monthly training: new month of data -> features -> checks -> model -> quality gate.
+"""Monthly pipeline: new month of data -> features -> checks -> monitoring -> (retrain) -> quality gate.
 
 Runs on the 3rd of each month for the month before (the run on 2026-12-03 handles 2026-11),
 because a month is only complete once it is over.
+
+    pick_month -> download -> build_features -> validate -> monitor -> retrain_needed?
+                                                                         ├─ "retrain" -> train -> register -> reload_api
+                                                                         └─ "skip"    -> keep_champion
 
 Every task only calls one of our modules as a command, in the pipeline venv ($PIPELINE_PYTHON).
 Airflow decides when and in which order; what happens is in src/db_delay_mlops/.
@@ -9,6 +13,7 @@ Airflow decides when and in which order; what happens is in src/db_delay_mlops/.
 
 from datetime import datetime, timedelta
 
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import dag, task
 
 PY = "$PIPELINE_PYTHON -m db_delay_mlops"
@@ -42,6 +47,16 @@ def monthly_training():
     def validate(month: str) -> str:
         return f"{PY}.data.validate --month {month}"
 
+    @task.bash
+    def monitor(month: str) -> str:
+        # Drift + champion on the new month, logged to MLflow; prints "retrain" or "skip" as its last line
+        return f"{PY}.monitoring.monitor --month {month}"
+
+    @task.branch
+    def retrain_needed(decision: str) -> str:
+        """Branching: return the task_id that runs next. The other path is marked "skipped"."""
+        return "train" if decision == "retrain" else "keep_champion"
+
     # Expensive and deterministic: a retry would only repeat the same hour
     @task.bash(retries=0, execution_timeout=timedelta(hours=3))
     def train(month: str) -> str:
@@ -52,11 +67,20 @@ def monthly_training():
     def register(mlflow_run_id: str, month: str) -> str:
         return f"{PY}.models.register --run-id {mlflow_run_id} --valid-month {month}"
 
+    @task.bash(retries=3, retry_delay=timedelta(minutes=1))
+    def reload_api() -> str:
+        # The API loads @champion only at start-up: tell it to load again (harmless if nothing changed)
+        return "curl --fail --silent --show-error -X POST $API_URL/reload"
+
+    keep_champion = EmptyOperator(task_id="keep_champion")  # does nothing: makes the "skip" path visible
+
     month = pick_month()
     checked = download(month) >> build_features(month) >> validate(month)
+    decision = monitor(month)
+    checked >> decision
     mlflow_run_id = train(month)
-    checked >> mlflow_run_id
-    register(mlflow_run_id, month)
+    retrain_needed(decision) >> [mlflow_run_id, keep_champion]
+    register(mlflow_run_id, month) >> reload_api()
 
 
 monthly_training()
