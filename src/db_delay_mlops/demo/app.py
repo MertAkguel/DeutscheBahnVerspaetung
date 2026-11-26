@@ -1,7 +1,8 @@
-"""Streamlit demo: which arrivals at a station are likely to be late, tomorrow or in the next days?
+"""Streamlit demo: which arrivals at a station are likely to be late in the next hours?
 
 The app never loads the model. It asks the timetable (DB Timetables API) which trains are
-planned, and our prediction API how likely each one is to be late. So it shows exactly what
+planned, and our prediction API how likely each one is to be late. The DB publishes the
+timetable only about 18 hours ahead; for later days the tab "Single train" still works. So it shows exactly what
 any other client of the API would get, and every answer is logged for monitoring (D6).
 
 Start:  make up  ->  http://localhost:8501
@@ -24,6 +25,9 @@ from db_delay_mlops.data.timetable import planned_arrivals
 
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 MAX_HOURS = 4  # one timetable call per hour and station level: keep within the free 60 calls per minute
+# The DB Timetables API answers 404 for hours further ahead (measured: about 18-20 hours, not documented),
+# so the timetable tab offers only today and tomorrow and says so when the DB has no plan yet.
+TIMETABLE_DAYS = 1
 RISK_ICON = {"low": "🟢 low", "medium": "🟠 medium", "high": "🔴 high"}
 FEATURE_NAMES = {
     "stada_name": "station",
@@ -110,8 +114,9 @@ with st.sidebar:
     stations = api_get("/stations")
     station = st.selectbox("Station", stations, index=stations.index("Köln Hbf") if "Köln Hbf" in stations else 0)
     today = date.today()
-    day = st.date_input("Day", value=today + timedelta(days=1), min_value=today, max_value=today + timedelta(days=6))
-    first, last = st.slider("Arrivals between", 0, 23, (16, 18), format="%d:00")
+    day = st.date_input("Day", value=today, min_value=today, max_value=today + timedelta(days=6))
+    now_hour = datetime.now().hour  # default: the next hours, the timetable is always published for them
+    first, last = st.slider("Arrivals between", 0, 23, (min(now_hour, 21), min(now_hour + 2, 23)), format="%d:00")
     st.caption("Risk: 🟢 below 20 %, 🟠 20–40 %, 🔴 40 % or more. On average about 22 % of arrivals are late.")
 
 timetable_tab, manual_tab = st.tabs(["Timetable", "Single train"])
@@ -119,6 +124,11 @@ timetable_tab, manual_tab = st.tabs(["Timetable", "Single train"])
 with timetable_tab:
     if not timetable_available():
         st.info("No DB API key configured (DB_CLIENT_ID, DB_API_KEY in .env). Use the tab 'Single train'.")
+    elif day > today + timedelta(days=TIMETABLE_DAYS):
+        st.info(
+            "The DB publishes the timetable only about 18 hours ahead. Choose today or tomorrow, "
+            "or use the tab 'Single train' for a later day."
+        )
     elif last - first + 1 > MAX_HOURS:
         st.info(f"Please choose at most {MAX_HOURS} hours.")
     else:
@@ -126,7 +136,12 @@ with timetable_tab:
         known_types = set(api_get("/train-types"))
         earliest, latest = datetime.now() - timedelta(hours=1), datetime.now() + timedelta(days=7)  # API's window
         usable = [a for a in arrivals if a["train_type"] in known_types and earliest <= a["planned_arrival"] <= latest]
-        if not usable:
+        if not arrivals:
+            st.info(
+                "The DB has no timetable for this time yet: it is published only about 18 hours ahead. "
+                "Choose an earlier time, or use the tab 'Single train'."
+            )
+        elif not usable:
             st.info("No arrivals of trains the model knows in this time window.")
         else:
             result = predict(usable)
@@ -163,7 +178,9 @@ with manual_tab:
         line = left.text_input("Line", "1")
         destination = left.text_input("Final destination", "Aachen Hbf")
         stop_number = right.number_input("Stop number on the ride", min_value=1, value=5)
-        arrival_time = right.time_input("Planned arrival", value=datetime.strptime("17:42", "%H:%M").time())
+        # Default: in one hour (the day defaults to today, and the API refuses arrivals in the past)
+        in_an_hour = min(datetime.now() + timedelta(hours=1), datetime.combine(today, datetime.max.time()))
+        arrival_time = right.time_input("Planned arrival", value=in_an_hour.time().replace(second=0, microsecond=0))
         minutes = right.number_input("Minutes since the train started", min_value=0, value=31)
         submitted = st.form_submit_button("Predict")
     if submitted and train_type:

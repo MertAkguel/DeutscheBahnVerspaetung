@@ -87,7 +87,7 @@ docker compose ps              # all services "Up", airflow-init "Exited (0)"
 | API | http://localhost:8000/docs | try every endpoint in the browser |
 | Demo | http://localhost:8501 | pick a station and hours: the planned arrivals with their delay risk and the reasons |
 
-The demo reads the timetable from the DB Timetables API and needs `DB_CLIENT_ID` and `DB_API_KEY` in `.env` (free key, see [Prerequisites](#prerequisites)). Without a key it still offers a form for a single train.
+The demo reads the timetable from the DB Timetables API and needs `DB_CLIENT_ID` and `DB_API_KEY` in `.env` (free key, see [Prerequisites](#prerequisites)). Without a key it still offers a form for a single train. The DB publishes the timetable only about 18 hours ahead (measured, not documented), so the timetable tab works for today and tomorrow morning; the single-train form works for the next 7 days.
 
 The API needs a registered `@champion`. On a fresh setup, train and register one first (about an hour on 12 months of data):
 
