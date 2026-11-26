@@ -222,6 +222,8 @@ __marimo__/
 # Project data (downloaded, never committed)
 data/raw/
 data/processed/
+# Prediction log of the API (one .jsonl per day, read by the monitoring)
+data/predictions/
 
 
 # my docs
