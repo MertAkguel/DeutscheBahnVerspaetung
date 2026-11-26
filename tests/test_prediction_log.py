@@ -39,7 +39,7 @@ def log_dir(tmp_path, monkeypatch):
 def test_every_prediction_becomes_one_line(log_dir):
     log_predictions([arrival(8), arrival(17)], [prediction(0.1), prediction(0.6)], model_version="2")
     [file] = log_dir.glob("predictions-*.jsonl")
-    lines = [json.loads(line) for line in file.read_text().splitlines()]
+    lines = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
     assert len(lines) == 2
     assert lines[1]["station"] == "Köln Hbf"
     assert lines[1]["probability_late"] == 0.6
@@ -50,7 +50,7 @@ def test_logging_appends(log_dir):
     log_predictions([arrival(8)], [prediction(0.1)], model_version="2")
     log_predictions([arrival(9)], [prediction(0.2)], model_version="2")
     [file] = log_dir.glob("predictions-*.jsonl")
-    assert len(file.read_text().splitlines()) == 2
+    assert len(file.read_text(encoding="utf-8").splitlines()) == 2
 
 
 def test_a_broken_log_folder_does_not_break_the_answer(monkeypatch, tmp_path):

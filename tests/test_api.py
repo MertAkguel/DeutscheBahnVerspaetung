@@ -112,7 +112,7 @@ def test_train_types_list(client):
 def test_predictions_are_logged(client, tmp_path):
     client.post("/predict/batch", json={"arrivals": [arrival(), arrival()]})
     [file] = tmp_path.glob("predictions-*.jsonl")
-    assert len(file.read_text().splitlines()) == 2
+    assert len(file.read_text(encoding="utf-8").splitlines()) == 2
 
 
 def test_stations_list(client):

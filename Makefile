@@ -1,6 +1,17 @@
 # Short names for the commands used most. "make help" lists them.
 # Recipes must be indented with a TAB, not spaces.
 
+# On Windows, make would run recipes in cmd.exe, which has no grep, tail, mkdir -p or $(...).
+# Use the sh.exe that ships with Git for Windows instead, so the same recipes work everywhere.
+# Elsewhere installed? Override with: make GIT_SH=D:/Tools/Git/bin/sh.exe <target>
+ifeq ($(OS),Windows_NT)
+GIT_SH ?= C:/PROGRA~1/Git/bin/sh.exe
+ifeq ($(wildcard $(GIT_SH)),)
+$(error Git Bash not found at $(GIT_SH). Install Git for Windows or pass GIT_SH=<path to sh.exe>)
+endif
+SHELL := $(GIT_SH)
+endif
+
 # Default month; override with: make data MONTH=2026-11
 MONTH ?= 2026-10
 
