@@ -119,7 +119,9 @@ services:
       test: ["CMD", "curl", "--fail", "http://localhost:5000/health"]
       interval: 10s
       retries: 10
-      start_period: 20s
+      # Grace time: failed checks do not count yet. The first start after a build can take
+      # 2-3 minutes (Docker Desktop on Windows); as soon as /health answers, the others start.
+      start_period: 180s
     restart: always
 
   # Prediction API: loads models:/db-delay-lightgbm@champion at start-up
